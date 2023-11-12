@@ -1,0 +1,17 @@
+fuse:
+  dir: users/var/primary/fuse
+  allow-other: false
+
+data:
+  dir: users/var/primary/data
+  compress: true
+
+http:
+  addr: ":20202"
+
+lease:
+  type: "static"
+  candidate: true
+  advertise-url: "http://localhost:20202"
+
+exec: "uvicorn --port $PORT users.auth:app --reload"

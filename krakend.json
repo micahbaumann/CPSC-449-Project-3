@@ -1,0 +1,520 @@
+{
+    "$schema": "https://www.krakend.io/schema/v2.4/krakend.json",
+    "version": 3,
+    "extra_config": {
+        "router": {
+          "return_error_msg": true
+        }
+      },
+    "endpoints": [
+            {
+                "endpoint": "/student/list",
+                "method": "GET",
+                "backend": [
+                {
+                    "url_pattern": "/list",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Student"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/student/enroll/{classid}/{sectionid}",
+                "method": "POST",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/enroll/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "POST",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Student"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/student/remove/{classid}/{sectionid}",
+                "method": "DELETE",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/enrollmentdrop/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "DELETE",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Student"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/student/waitlist/drop/{classid}",
+                "method": "DELETE",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/waitlistdrop/{JWT.jti}/{classid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "DELETE",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Student"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/student/waitlist/{classid}",
+                "method": "GET",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Student"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/instructor/enrolled/{classid}/{sectionid}",
+                "method": "GET",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/enrolled/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Instructor"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/instructor/dropped/{classid}/{sectionid}",
+                "method": "GET",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/dropped/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Instructor"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/instructor/drop/{classid}/{studentid}",
+                "method": "DELETE",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/drop/{JWT.jti}/{classid}/{studentid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "DELETE",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Instructor"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/instructor/waitlist/{classid}/{sectionid}",
+                "method": "GET",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Instructor"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/registrar/add/{classid}/{sectionid}/{professorid}/{enrollmax}/{waitmax}",
+                "method": "POST",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/add/{classid}/{sectionid}/{professorid}/{enrollmax}/{waitmax}",
+                    "method": "POST",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Registrar"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                },
+                "input_headers":[
+                    "Authorization"
+                ]
+            },
+            {
+                "endpoint": "/registrar/remove/{classid}/{sectionid}",
+                "method": "DELETE",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/remove/{classid}/{sectionid}",
+                    "method": "DELETE",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Registrar"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/registrar/freeze/{isfrozen}",
+                "method": "PUT",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/freeze/{isfrozen}",
+                    "method": "PUT",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Registrar"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/registrar/change/{classid}/{newprofessorid}",
+                "method": "PUT",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/change/{classid}/{newprofessorid}",
+                    "method": "PUT",
+                    "host": [
+                        "http://localhost:5300",
+                        "http://localhost:5400",
+                        "http://localhost:5500"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Registrar"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                },
+                "input_headers":[
+                    "Authorization"
+                ]
+            }
+
+
+
+
+
+
+            ,{
+                "endpoint": "/user/register",
+                "method": "POST",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/register",
+                    "method": "POST",
+                    "host": [
+                        "http://localhost:5000"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ]
+            },
+            {
+                "endpoint": "/user/login",
+                "method": "POST",
+                "backend": [
+                {
+                    "url_pattern": "/login",
+                    "method": "POST",
+                    "host": [
+                        "http://localhost:5000"
+                    ],
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/signer": {
+                        "alg": "RS256",
+                        "kid": "sim1",
+                        "keys_to_sign": ["access_token"],
+                        "jwk_local_path": "etc/private.json",
+                        "disable_jwk_security": true
+                    }
+                }
+            },
+            {
+                "endpoint": "/user/checkpwd",
+                "method": "POST",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/checkpwd",
+                    "method": "POST",
+                    "host": [
+                        "http://localhost:5000"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ]
+            },
+            {
+                "endpoint": "/user/get/{uid}",
+                "method": "GET",
+                "output_encoding": "no-op",
+                "backend": [
+                {
+                    "url_pattern": "/getuser/{uid}",
+                    "method": "GET",
+                    "host": [
+                        "http://localhost:5000"
+                    ],
+                    "encoding": "no-op",
+                    "extra_config": {
+                        "backend/http": {
+                            "return_error_details": "backend_alias"
+                        }
+                    }
+                }
+                ],
+                "extra_config": {
+                    "auth/validator": {
+                        "alg": "RS256",
+                        "roles": ["Registrar"],
+                        "jwk_local_path": "./etc/public.json",
+                        "disable_jwk_security": true,
+                        "operation_debug": true
+                    }
+                }
+            }
+        ]
+}
