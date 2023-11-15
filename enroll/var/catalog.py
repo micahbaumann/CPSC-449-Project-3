@@ -59,7 +59,11 @@ class Catalog:
         """
         table = self.dyn_resource.Table(table_name)
         for item in items:
-            table.put_item(Item=item)
+            try:
+                table.put_item(Item=item)
+            except ClientError as e:
+                print(f"Error adding item to {table_name}: {e.response['Error']['Message']}")
+                raise e
         
     def delete_table_if_exists(self, table_name):
         """
@@ -97,6 +101,7 @@ my_catalog.delete_table_if_exists("Enrollments")
 # Define the key schema and attribute definitions for the "Users" table
 users_key_schema = [
     {"AttributeName": "UserId", "KeyType": "HASH"}
+
 ]
 
 users_attribute_definitions = [
@@ -116,14 +121,14 @@ my_catalog.create_table("Users", users_key_schema, users_attribute_definitions)
 
 # Define the key schema and attribute definitions for the "Classes" table
 classes_key_schema = [
-    {"AttributeName": "ClassID", "KeyType": "HASH"},
-    {"AttributeName": "CourseCode", "KeyType": "RANGE"}
+    {"AttributeName": "CourseCode", "KeyType": "HASH"},
+    {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
 ]
 
 classes_attribute_definitions = [
-    {"AttributeName": "ClassID", "AttributeType": "N"},
+    # {"AttributeName": "ClassID", "AttributeType": "N"},
     {"AttributeName": "CourseCode", "AttributeType": "S"},
-    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
+    {"AttributeName": "SectionNumber", "AttributeType": "N"},
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
@@ -181,9 +186,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "active"},
-    {"ClassID": 2, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
-    # Add more class items as needed
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "inactive"},
+    {"ClassID": 1, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "active"},
+    
+    {"ClassID": 2, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "inactive"},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
+    
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "State": "inactive"},
+    {"ClassID": 3, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "State": "active"},
+    
+    {"ClassID": 4, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "State": "inactive"},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "State": "active"},
+    
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "State": "inactive"},
+    {"ClassID": 5, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "State": "active"},
 ]
 
 my_catalog.put_items("Classes", classes_items)
@@ -191,8 +207,8 @@ my_catalog.put_items("Classes", classes_items)
 
 # Populate the "Enrollments" table
 enrollments_items = [
-    {"EnrollmentID": 1, "StudentID": 1, "ClassID": 1, "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 2, "StudentID": 1, "ClassID": 2, "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 1, "StudentID": 2, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 2, "StudentID": 2, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
     # Add more enrollment items as needed
 ]
 
