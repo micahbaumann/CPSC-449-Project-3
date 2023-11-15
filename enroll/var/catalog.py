@@ -207,8 +207,17 @@ my_catalog.put_items("Classes", classes_items)
 
 # Populate the "Enrollments" table
 enrollments_items = [
-    {"EnrollmentID": 1, "StudentID": 2, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 2, "StudentID": 2, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 1, "StudentID": 2, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "DROPPED"},
+    {"EnrollmentID": 2, "StudentID": 2, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "WAITLISTED"},
+    {"EnrollmentID": 3, "StudentID": 2, "CourseCode": "PHYS-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 4, "StudentID": 2, "CourseCode": "MATH-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 5, "StudentID": 2, "CourseCode": "ENG-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 6, "StudentID": 3, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 7, "StudentID": 3, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 8, "StudentID": 3, "CourseCode": "PHYS-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 9, "StudentID": 3, "CourseCode": "MATH-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 10, "StudentID": 3, "CourseCode": "ENG-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 11, "StudentID": 4, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
     # Add more enrollment items as needed
 ]
 
