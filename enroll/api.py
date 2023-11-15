@@ -48,19 +48,25 @@ def check_user(id_val: int, username: str, name: str, email: str, roles: list, d
 ### Student related endpoints
 
 @app.get("/list")
-def list_open_classes(db: sqlite3.Connection = Depends(get_db)):
+def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
         return {"Classes": []}
-    
-    classes = db.execute(
-        "SELECT * FROM Classes WHERE \
-            Classes.MaximumEnrollment > (SELECT COUNT(EnrollmentID) FROM Enrollments WHERE Enrollments.ClassID = Classes.ClassID) \
-            OR Classes.WaitlistMaximum > (SELECT COUNT(WaitlistID) FROM Waitlists WHERE Waitlists.ClassID = Classes.ClassID)"
-    )
-    return {"Classes": classes.fetchall()}
+
+    classes = db.execute("SELECT * FROM Classes")
+    # classes = db.execute(
+    #     "SELECT * FROM Classes WHERE \
+    #         Classes.MaximumEnrollment > (SELECT COUNT(EnrollmentID) FROM Enrollments WHERE Enrollments.ClassID = Classes.ClassID) \
+    #         OR Classes.WaitlistMaximum > (SELECT COUNT(WaitlistID) FROM Waitlists WHERE Waitlists.ClassID = Classes.ClassID)"
+    # )
+    classList = {"Classes": []}
+    for aClass in classes.fetchall():
+        if r.llen(f"waitClassID_{aClass['ClassID']}") < aClass["WaitlistMaximum"]:
+            classList["Classes"].append(aClass)
+
+    return classList
 
 @app.post("/enroll/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}", status_code=status.HTTP_201_CREATED)
-def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
     
@@ -78,30 +84,33 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
     
     class_section = classes["SectionNumber"]
     count = db.execute("SELECT COUNT() FROM Enrollments WHERE ClassID = ?", (classid,)).fetchone()[0]
-    waitlist_count = db.execute("SELECT COUNT() FROM Waitlists WHERE ClassID = ?", (classid,)).fetchone()[0]
+    # waitlist_count = db.execute("SELECT COUNT() FROM Waitlists WHERE ClassID = ?", (classid,)).fetchone()[0]
+    waitlist_count = r.llen(f"waitClassID_{classid}")
     print(count)
     if count < classes["MaximumEnrollment"]:
         db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber) VALUES(?,?,?)",(studentid, classid, class_section))
         db.commit()
         return {"message": f"Enrolled student {studentid} in section {class_section} of class {classid}."}
     elif waitlist_count < classes["WaitlistMaximum"]:
-        waitlisted = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
+        waitlisted = r.lpos(f"waitClassID_{classid}", studentid)
+        # waitlisted = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
         if waitlisted:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Student already waitlisted")
 
-        max_waitlist_position = db.execute("SELECT MAX(Position) FROM Waitlists WHERE ClassID = ? AND  SectionNumber = ?",(classid,sectionid)).fetchone()[0]
-        print("Position: " + str(max_waitlist_position))
-        if not max_waitlist_position: max_waitlist_position = 0
-        db.execute("INSERT INTO Waitlists(StudentID, ClassID, SectionNumber, Position) VALUES(?,?,?,?)",(studentid, classid, class_section, max_waitlist_position + 1))
-        db.commit()
+        # max_waitlist_position = db.execute("SELECT MAX(Position) FROM Waitlists WHERE ClassID = ? AND  SectionNumber = ?",(classid,sectionid)).fetchone()[0]
+        # print("Position: " + str(max_waitlist_position))
+        # if not max_waitlist_position: max_waitlist_position = 0
+        # db.execute("INSERT INTO Waitlists(StudentID, ClassID, SectionNumber, Position) VALUES(?,?,?,?)",(studentid, classid, class_section, max_waitlist_position + 1))
+        # db.commit()
+        r.rpush(f"waitClassID_{classid}", studentid)
         return {"message": f"Enrolled in waitlist {class_section} of class {classid}."}
     else:
         return {"message": f"Unable to enroll in waitlist for the class, reached the maximum number of students"}
 
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
-def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
     # Try to Remove student from the class
@@ -115,13 +124,14 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
     query = db.execute("UPDATE Enrollments SET EnrollmentStatus = 'DROPPED' WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
     db.commit()
     # Add student to class if there are students in the waitlist for this class
-    next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
+    # next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
+    next_on_waitlist = r.lpop(f"waitClassID_{classid}")
     if next_on_waitlist:
         try:
             db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber,EnrollmentStatus) \
-                            VALUES (?, ?, ?,'ENROLLED')", (next_on_waitlist['StudentID'], classid, sectionid))
-            db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (next_on_waitlist['StudentID'], classid))
-            db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
+                            VALUES (?, ?, ?,'ENROLLED')", (next_on_waitlist, classid, sectionid))
+            # db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (next_on_waitlist['StudentID'], classid))
+            # db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
             db.commit()
         except sqlite3.IntegrityError as e:
             raise HTTPException(
@@ -139,19 +149,20 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
     return {"Result": [{"Student dropped from class": dropped_student} ]}
 
 @app.delete("/waitlistdrop/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
-def remove_student_from_waitlist(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def remove_student_from_waitlist(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
-    exists = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
-    if not exists:
+    # exists = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
+    exists = r.lrem(f"waitClassID_{classid}", 0, studentid)
+    if exists == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"Error": "No such student found in the given class on the waitlist"}
         )
-    db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
-    db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
-    db.commit()
-    return {"Element removed": exists}
+    # db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
+    # db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
+    # db.commit()
+    return {"Element removed": studentid}
     
 @app.get("/waitlist/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
@@ -353,3 +364,8 @@ def freeze_enrollment(classid: str, studentid: str, db = Depends(get_redis)):
 def freeze_enrollment(classid: str, db = Depends(get_redis)):
     studentid = db.lpop(f"waitClassID_{classid}")
     return studentid
+
+@app.get("/lpos/{classid}/{studentid}")
+def freeze_enrollment(classid: str, studentid:str, db = Depends(get_redis)):
+    studentidd = db.lpos(f"waitClassID_{classid}", studentid)
+    return studentidd
