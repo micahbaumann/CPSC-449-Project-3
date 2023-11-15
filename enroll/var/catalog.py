@@ -30,6 +30,7 @@ class Catalog:
                 },
             )
             self.table.wait_until_exists()
+            print(f"Table {table_name} created successfully.")
         except ClientError as err:
             # TODO: setup logger
             # logger.error(
@@ -49,10 +50,47 @@ class Catalog:
         else:
             return self.table
         
+    def put_items(self, table_name, items):
+        """
+        Adds items to the specified DynamoDB table.
+
+        :param table_name: The name of the table to add items to.
+        :param items: A list of dictionaries, where each dictionary represents an item to add.
+        """
+        table = self.dyn_resource.Table(table_name)
+        for item in items:
+            table.put_item(Item=item)
+        
+    def delete_table_if_exists(self, table_name):
+        """
+        Deletes the specified DynamoDB table if it exists.
+
+        :param table_name: The name of the table to delete.
+        """
+        try:
+            table = self.dyn_resource.Table(table_name)
+            if table.table_status == 'ACTIVE':
+                table.delete()
+                table.wait_until_not_exists()
+                print(f"Table {table_name} deleted successfully.")
+            else:
+                print(f"Table {table_name} does not exist.")
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                print(f"Table {table_name} does not exist.")
+            else:
+                raise
+        
 
 # start an instance of the Catalog class
-dynamo_db = boto3.resource("dynamodb", endpoint_url = "http://localhost:8000")  
+dynamo_db = boto3.resource("dynamodb", endpoint_url = "http://localhost:5700")  
 my_catalog = Catalog(dynamo_db)  
+
+# ********************************** Delete tables if they exist **********************************
+
+my_catalog.delete_table_if_exists("Users")
+my_catalog.delete_table_if_exists("Classes")
+my_catalog.delete_table_if_exists("Enrollments")
 
 # ********************************** Create "Users table" ***************************************
 
@@ -63,11 +101,11 @@ users_key_schema = [
 
 users_attribute_definitions = [
     {"AttributeName": "UserId", "AttributeType": "N"},
-    {"AttributeName": "Username", "AttributeType": "S"},
-    {"AttributeName": "Email", "AttributeType": "S"},
-    {"AttributeName": "FirstName", "AttributeType": "S"},
-    {"AttributeName": "LastName", "AttributeType": "S"},
-    {"AttributeName": "Role", "AttributeType": "S"}
+    # {"AttributeName": "Username", "AttributeType": "S"},
+    # {"AttributeName": "Email", "AttributeType": "S"},
+    # {"AttributeName": "FirstName", "AttributeType": "S"},
+    # {"AttributeName": "LastName", "AttributeType": "S"},
+    # {"AttributeName": "Role", "AttributeType": "S"}
 ]
 
 # Create the "Users" table
@@ -79,19 +117,19 @@ my_catalog.create_table("Users", users_key_schema, users_attribute_definitions)
 # Define the key schema and attribute definitions for the "Classes" table
 classes_key_schema = [
     {"AttributeName": "ClassID", "KeyType": "HASH"},
-    {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
+    {"AttributeName": "CourseCode", "KeyType": "RANGE"}
 ]
 
 classes_attribute_definitions = [
     {"AttributeName": "ClassID", "AttributeType": "N"},
     {"AttributeName": "CourseCode", "AttributeType": "S"},
-    {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    {"AttributeName": "ClassName", "AttributeType": "S"},
-    {"AttributeName": "Department", "AttributeType": "S"},
-    {"AttributeName": "InstructorID", "AttributeType": "N"},
-    {"AttributeName": "Capacity", "AttributeType": "N"},
+    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
+    # {"AttributeName": "ClassName", "AttributeType": "S"},
+    # {"AttributeName": "Department", "AttributeType": "S"},
+    # {"AttributeName": "InstructorID", "AttributeType": "N"},
+    # {"AttributeName": "Capacity", "AttributeType": "N"},
     # either 'active' or 'inactive'
-    {"AttributeName": "State", "AttributeType": "S"}
+    # {"AttributeName": "State", "AttributeType": "S"}
 ]
 
 # Create the "Classes" table
@@ -101,15 +139,15 @@ my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definit
 
 # Define the key schema and attribute definitions for the "Enrollments" table
 enrollments_key_schema = [
-    {"AttributeName": "EnrollmentID", "KeyType": "HASH"}
+    {"AttributeName": "EnrollmentID", "KeyType": "HASH"},
 ]
 
 enrollments_attribute_definitions = [
     {"AttributeName": "EnrollmentID", "AttributeType": "N"},
-    {"AttributeName": "StudentID", "AttributeType": "N"},
-    {"AttributeName": "ClassID", "AttributeType": "N"},
-    {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
+    # {"AttributeName": "StudentID", "AttributeType": "N"},
+    # {"AttributeName": "ClassID", "AttributeType": "N"},
+    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
+    # {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
 ]
 
 # Create the "Enrollments" table
@@ -120,36 +158,43 @@ my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attri
 # ********************************** Populate tables with data **********************************
 
 # Populate the "Users" table
-users_table = dynamo_db.Table("Users")
-
 users_items = [
-    {"UserId": 1, "Username": "edwinperaza", "Email": "edwinperaza@example.com", "FirstName": "Edwin", "LastName": "Peraza", "Role": "Student"},
-    {"UserId": 2, "Username": "janesmith", "Email": "janesmith@example.com", "FirstName": "Jane", "LastName": "Smith", "Role": "Instructor"},
+    # registrar has UserId 1
+    {"UserId": 1, "Username": "registrar", "Email": "registrar@example.com", "FirstName": "Registrar", "LastName": "Registrar", "Role": "Registrar"},
+    # 5 student with UserId 2-6
+    {"UserId": 2, "Username": "edwinperaza", "Email": "edwinperaza@example.com", "FirstName": "Edwin", "LastName": "Peraza", "Role": "Student"},
+    {"UserId": 2, "Username": "johndoe", "Email": "johndoe@example.com", "FirstName": "John", "LastName": "Doe", "Role": "Student"},
+    {"UserId": 3, "Username": "alicesmith", "Email": "alicesmith@example.com", "FirstName": "Alice", "LastName": "Smith", "Role": "Student"},
+    {"UserId": 4, "Username": "bobjohnson", "Email": "bobjohnson@example.com", "FirstName": "Bob", "LastName": "Johnson", "Role": "Student"},
+    {"UserId": 5, "Username": "evawilliams", "Email": "evawilliams@example.com", "FirstName": "Eva", "LastName": "Williams", "Role": "Student"},
+    {"UserId": 6, "Username": "chrisbrown", "Email": "chrisbrown@example.com", "FirstName": "Chris", "LastName": "Brown", "Role": "Student"},
+    # 5 instructor with UserId 7-11
+    {"UserId": 7, "Username": "professoranderson", "Email": "professoranderson@example.com", "FirstName": "Professor", "LastName": "Anderson", "Role": "Instructor"},
+    {"UserId": 8, "Username": "drclark", "Email": "drclark@example.com", "FirstName": "Dr.", "LastName": "Clark", "Role": "Instructor"},
+    {"UserId": 9, "Username": "msjohnson", "Email": "msjohnson@example.com", "FirstName": "Ms.", "LastName": "Johnson", "Role": "Instructor"},
+    {"UserId": 10, "Username": "janesmith", "Email": "janesmith@example.com", "FirstName": "Jane", "LastName": "Smith", "Role": "Instructor"},
+    {"UserId": 11, "Username": "professorbrown", "Email": "professorbrown@example.com", "FirstName": "Professor", "LastName": "Brown", "Role": "Instructor"},
 ]
 
-for item in users_items:
-    users_table.put_item(Item=item)
+my_catalog.put_items("Users", users_items)
+
 
 # Populate the "Classes" table
-classes_table = dynamo_db.Table("Classes")
-
 classes_items = [
     {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "active"},
     {"ClassID": 2, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
     # Add more class items as needed
 ]
 
-for item in classes_items:
-    classes_table.put_item(Item=item)
+my_catalog.put_items("Classes", classes_items)
+
 
 # Populate the "Enrollments" table
-enrollments_table = dynamo_db.Table("Enrollments")
-
 enrollments_items = [
     {"EnrollmentID": 1, "StudentID": 1, "ClassID": 1, "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
     {"EnrollmentID": 2, "StudentID": 1, "ClassID": 2, "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
     # Add more enrollment items as needed
 ]
 
-for item in enrollments_items:
-    enrollments_table.put_item(Item=item)
+my_catalog.put_items("Enrollments", enrollments_items)
+
