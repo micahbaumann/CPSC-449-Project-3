@@ -1,0 +1,8 @@
+Add to the waitlist:
+RPUSH waitClassID_<classid> <list the student ids>
+
+Remove from the waitlist:
+LPOP waitClassID_<classid>
+
+Check waitlist length:
+LLEN waitClassID_<classid>

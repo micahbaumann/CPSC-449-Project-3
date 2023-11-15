@@ -1,6 +1,7 @@
 import sqlite3
 import contextlib
 import requests
+import redis
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from pydantic_settings import BaseSettings
@@ -17,8 +18,12 @@ def get_db():
         db.row_factory = sqlite3.Row
         yield db
 
+def get_redis():
+    yield redis.Redis()
+
 settings = Settings()
 app = FastAPI()
+r = redis.Redis()
 
 def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqlite3.Connection = Depends(get_db)) -> bool:
     """return true if value found, false if not found"""
@@ -339,3 +344,13 @@ def change_prof(request: Request, classid: int, newprofessorid: int, db: sqlite3
             detail={"type": type(e).__name__, "msg": str(e)},
         )
 
+# Redis examples
+
+@app.put("/add/{classid}/{studentid}", status_code=status.HTTP_204_NO_CONTENT)
+def freeze_enrollment(classid: str, studentid: str, db = Depends(get_redis)):
+    db.rpush(f"waitClassID_{classid}", studentid)
+
+@app.delete("/remove/{classid}", status_code=200)
+def freeze_enrollment(classid: str, db = Depends(get_redis)):
+    studentid = db.lpop(f"waitClassID_{classid}")
+    return studentid
