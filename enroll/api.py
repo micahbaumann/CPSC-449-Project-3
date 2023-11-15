@@ -23,7 +23,6 @@ def get_redis():
 
 settings = Settings()
 app = FastAPI()
-r = redis.Redis()
 
 def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqlite3.Connection = Depends(get_db)) -> bool:
     """return true if value found, false if not found"""
@@ -350,7 +349,7 @@ def change_prof(request: Request, classid: int, newprofessorid: int, db: sqlite3
 def freeze_enrollment(classid: str, studentid: str, db = Depends(get_redis)):
     db.rpush(f"waitClassID_{classid}", studentid)
 
-@app.delete("/remove/{classid}", status_code=200)
+@app.delete("/remove/{classid}")
 def freeze_enrollment(classid: str, db = Depends(get_redis)):
     studentid = db.lpop(f"waitClassID_{classid}")
     return studentid
