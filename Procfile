@@ -1,6 +1,6 @@
-primary: ./bin/litefs mount -config ./users/etc/primary.yml
-secondary_1: ./bin/litefs mount -config ./users/etc/secondary_1.yml
-secondary_2: ./bin/litefs mount -config ./users/etc/secondary_2.yml
+users_primary: ./bin/litefs mount -config ./users/etc/primary.yml
+users_secondary_1: ./bin/litefs mount -config ./users/etc/secondary_1.yml
+users_secondary_2: ./bin/litefs mount -config ./users/etc/secondary_2.yml
 enroll_1: uvicorn --port $PORT enroll.api:app --reload
 enroll_2: uvicorn --port $PORT enroll.api:app --reload
 enroll_3: uvicorn --port $PORT enroll.api:app --reload
