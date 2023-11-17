@@ -87,7 +87,7 @@ class Catalog:
         
 
 # start an instance of the Catalog class
-dynamo_db = boto3.resource("dynamodb", endpoint_url = "http://localhost:5700")  
+dynamo_db = boto3.resource("dynamodb", endpoint_url = "http://localhost:5500")  
 my_catalog = Catalog(dynamo_db)  
 
 # ********************************** Delete tables if they exist **********************************
