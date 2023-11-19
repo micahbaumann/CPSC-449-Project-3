@@ -258,7 +258,7 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
     return {"message": f"Student {studentid} has been administratively dropped from class {classid}"}
 
 @app.get("/waitlist/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
-def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
@@ -267,13 +267,10 @@ def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, us
             status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
         )
 
-    if not len(lrange(f"waitClassID_{classid}", 0, -1)):
+    if not len(redis.lrange(f"waitClassID_{classid}", 0, -1)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No students found in the waitlist for this class")
-    student_ids = [f"\"{str(student, 'utf-8')}\"" for student in lrange(f"waitClassID_{classid}", 0, -1)]
-    student_ids = ','.join(student_ids)
-    query = "SELECT * FROM Students WHERE StudentID IN (?)"
-    waitlist = db.execute(query, (student_ids)).fetchall()
-    return {"Waitlist": [{"student_id": student["StudentID"]} for student in waitlist]}
+    student_ids = tuple([int(student) for student in redis.lrange(f"waitClassID_{classid}", 0, -1)])
+    return {"Waitlist": [{"student_id": int(student)} for student in redis.lrange(f"waitClassID_{classid}", 0, -1)]}
 
 ### Registrar related endpoints
 
