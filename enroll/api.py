@@ -267,9 +267,10 @@ def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, us
             status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
         )
 
-    if not len(redis.lrange(f"waitClassID_{classid}", 0, -1)):
+    student_ids = redis.lrange(f"waitClassID_{classid}", 0, -1)
+    if not len(student_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No students found in the waitlist for this class")
-    return {"Waitlist": [{"student_id": int(student)} for student in redis.lrange(f"waitClassID_{classid}", 0, -1)]}
+    return {"Waitlist": [{"student_id": int(student)} for student in student_ids]}
 
 ### Registrar related endpoints
 
