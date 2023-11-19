@@ -165,11 +165,10 @@ def remove_student_from_waitlist(studentid: int, classid: int, name: str, userna
     return {"Element removed": studentid}
     
 @app.get("/waitlist/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
-def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
-    position = None
-    position = db.execute("SELECT Position FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid,classid,)).fetchone()
+    position = r.lpos(f"waitClassID_{classid}", studentid)
     
     if position:
         message = f"Student {studentid} is on the waitlist for class {classid} in position"
@@ -241,12 +240,11 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
         raise HTTPException(status_code=404, detail="Student, class, or section not found.")
     
     # Add student to class if there are students in the waitlist for this class
-    next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
+    next_on_waitlist = lpop(f"waitClassID_{classid}")
     if next_on_waitlist:
         try:
             db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber,EnrollmentStatus) \
-                            VALUES (?, ?, (SELECT SectionNumber FROM Classes WHERE ClassID=?), 'ENROLLED')", (next_on_waitlist['StudentID'], classid, classid))
-            db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (next_on_waitlist['StudentID'], classid))
+                            VALUES (?, ?, (SELECT SectionNumber FROM Classes WHERE ClassID=?), 'ENROLLED')", (next_on_waitlist, classid, classid))
             db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
             db.commit()
         except sqlite3.IntegrityError as e:
@@ -268,11 +266,13 @@ def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, us
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
         )
-    
-    query = "SELECT * FROM Students INNER JOIN (SELECT StudentID, Position FROM Waitlists WHERE ClassID = ? AND SectionNumber =? ORDER BY Position) as w on Students.StudentID = w.StudentID"
-    waitlist = db.execute(query, (classid, sectionid)).fetchall()
-    if not waitlist:
+
+    if not len(lrange(f"waitClassID_{classid}", 0, -1)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No students found in the waitlist for this class")
+    student_ids = [f"\"{str(student, 'utf-8')}\"" for student in lrange(f"waitClassID_{classid}", 0, -1)]
+    student_ids = ','.join(student_ids)
+    query = "SELECT * FROM Students WHERE StudentID IN (?)"
+    waitlist = db.execute(query, (student_ids)).fetchall()
     return {"Waitlist": [{"student_id": student["StudentID"]} for student in waitlist]}
 
 ### Registrar related endpoints
