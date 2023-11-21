@@ -2,12 +2,22 @@ import sqlite3
 import contextlib
 import requests
 import redis
+import boto3
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from pydantic_settings import BaseSettings
+from botocore.exceptions import ClientError
+
 WAITLIST_MAXIMUM = 15
 MAXIMUM_WAITLISTED_CLASSES = 3
-KRAKEND_PORT = "5600"
+KRAKEND_PORT = "5400"
+
+# start dynamo db
+dynamo_db = boto3.resource('dynamodb', endpoint_url="http://localhost:5500")
+# retrieve tables
+users_table = dynamo_db.Table('Users')
+classes_table = dynamo_db.Table('Classes')
+enrollments_table = dynamo_db.Table('Enrollments')
 
 class Settings(BaseSettings, env_file="enroll/.env", extra="ignore"):
     database: str
