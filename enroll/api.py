@@ -6,7 +6,9 @@ import boto3
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from pydantic_settings import BaseSettings
+from pydantic import BaseModel
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
 
 WAITLIST_MAXIMUM = 15
 MAXIMUM_WAITLISTED_CLASSES = 3
@@ -42,6 +44,7 @@ def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqli
     else:
         return False
 
+
 def check_user(id_val: int, username: str, name: str, email: str, roles: list, db: sqlite3.Connection = Depends(get_db)):
     vals = db.execute(f"SELECT * FROM Users WHERE UserId = ?",(id_val,)).fetchone()
     if not vals:
@@ -55,19 +58,138 @@ def check_user(id_val: int, username: str, name: str, email: str, roles: list, d
         
         db.commit()
 
+
+def check_role(user_id: int):
+    response = users_table.query(KeyConditionExpression=Key('UserId').eq(user_id))
+    user_item = response.get('Items')[0] if 'Items' in response else None
+
+    if not user_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with UserId {user_id} not found"
+        )
+    
+    role = user_item.get('Role')
+    if role not in ['Registrar', 'Instructor', 'Student']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid role for user with UserId {user_id}"
+        )
+
+    return role
+
+
+def check_class_exists(class_id: int):
+    response = classes_table.query(
+        KeyConditionExpression=Key('ClassID').eq(class_id)
+    )
+
+    class_item = response.get('Items')[0] if 'Items' in response else None
+
+    if not class_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Class with ClassID {class_id} not found"
+        )
+
+    return class_item
+
+
+def get_last_enrollment_id():
+    response = enrollments_table.query(
+        KeyConditionExpression='EnrollmentID > :enrollment_id',
+        ExpressionAttributeValues={':enrollment_id': 0},
+        ScanIndexForward=False,  # Descending order to get the last record
+        Limit=1
+    )
+
+    last_enrollment_item = response.get('Items')[0] if 'Items' in response else None
+
+    if last_enrollment_item:
+        return last_enrollment_item['EnrollmentID']
+    else:
+        return 0
+
+
+def get_enrollment_status(student_id: int, class_id: int):
+    response = enrollments_table.query(
+        KeyConditionExpression=Key('StudentID').eq(student_id) & Key('ClassID').eq(class_id),
+        ProjectionExpression='EnrollmentStatus',
+        Limit=1
+    )
+
+    enrollment_item = response.get('Items')[0] if 'Items' in response else None
+
+    if enrollment_item:
+        return enrollment_item.get('EnrollmentStatus')
+    else:
+        return None
+
+
+def update_enrollment_status(student_id: int, class_id: int, new_status: str):
+    response = enrollments_table.update_item(
+        Key={'StudentID': student_id, 'ClassID': class_id},
+        UpdateExpression='SET EnrollmentStatus = :status',
+        ExpressionAttributeValues={':status': new_status},
+        ReturnValues='UPDATED_NEW'
+    )
+
+    updated_item = response.get('Attributes')
+
+    if updated_item:
+        return updated_item.get('EnrollmentStatus')
+    else:
+        return None
+    
+
+def update_current_enrollment(class_id: int, increment: bool = True):
+    # Determine whether to increment or decrement
+    update_expression = 'ADD CurrentEnrollment :delta' if increment else 'ADD CurrentEnrollment :delta * -1'
+    
+    # Set the value of :delta based on whether to increment or decrement
+    expression_attribute_values = {':delta': 1} if increment else {':delta': -1}
+
+    # Perform the update
+    response = classes_table.update_item(
+        Key={'ClassID': class_id},
+        UpdateExpression=update_expression,
+        ExpressionAttributeValues=expression_attribute_values,
+        ReturnValues='UPDATED_NEW'
+    )
+
+    updated_item = response.get('Attributes')
+
+    if updated_item:
+        return updated_item.get('CurrentEnrollment')
+    else:
+        return None    
+
+
 ### Student related endpoints
 
 @app.get("/list")
 def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
-    if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
-        return {"Classes": []}
+    """API to fetch list of available classes in catalog.
 
-    classes = db.execute("SELECT * FROM Classes")
+    Args:
+        None
+
+    Returns:
+        A dictionary with a list of classes available for enrollment.
+    """
+    response = classes_table.scan()
+
+    return {"Classes": response['Items']}
+    # if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
+    #     return {"Classes": []}
+
+    # classes = db.execute("SELECT * FROM Classes")
     # classes = db.execute(
     #     "SELECT * FROM Classes WHERE \
     #         Classes.MaximumEnrollment > (SELECT COUNT(EnrollmentID) FROM Enrollments WHERE Enrollments.ClassID = Classes.ClassID) \
     #         OR Classes.WaitlistMaximum > (SELECT COUNT(WaitlistID) FROM Waitlists WHERE Waitlists.ClassID = Classes.ClassID)"
     # )
+    # TODO: add redis 
     classList = {"Classes": []}
     for aClass in classes.fetchall():
         if r.llen(f"waitClassID_{aClass['ClassID']}") < aClass["WaitlistMaximum"]:
@@ -75,49 +197,133 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
 
     return classList
 
+
 @app.post("/enroll/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}", status_code=status.HTTP_201_CREATED)
 def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(studentid, username, name, email, roles, db)
+    """API to enroll a student in a class.
     
-    classes = db.execute("SELECT * FROM Classes WHERE ClassID = ?", (classid,)).fetchone()
-    if not classes:
+    Args:
+        studentid: The student's ID.
+        classid: The class ID.
+
+    Returns:
+        A dictionary with a message indicating the student's enrollment status.
+    """
+    role = check_role(studentid)
+    if role != 'Student':
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class not found")
-    
-    enrolled = db.execute("SELECT * FROM Enrollments WHERE ClassID = ? AND StudentID = ? AND EnrollmentStatus='ENROLLED'", (classid, studentid)).fetchone()
-    if enrolled:
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User with UserId {studentid} is not a student"
+        )
+    # TODO: use class_item for waitlist 
+    class_item = check_class_exists(classid)
+
+    status = get_enrollment_status(studentid, classid)
+    if status == 'ENROLLED':
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Student already enrolled")
-    
-    class_section = classes["SectionNumber"]
-    count = db.execute("SELECT COUNT() FROM Enrollments WHERE ClassID = ?", (classid,)).fetchone()[0]
-    # waitlist_count = db.execute("SELECT COUNT() FROM Waitlists WHERE ClassID = ?", (classid,)).fetchone()[0]
-    waitlist_count = r.llen(f"waitClassID_{classid}")
-    print(count)
-    if count < classes["MaximumEnrollment"]:
-        db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber) VALUES(?,?,?)",(studentid, classid, class_section))
-        db.commit()
-        return {"message": f"Enrolled student {studentid} in section {class_section} of class {classid}."}
-    elif waitlist_count < classes["WaitlistMaximum"]:
-        waitlisted = r.lpos(f"waitClassID_{classid}", studentid)
-        # waitlisted = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
-        if waitlisted:
+            detail=f"Student with StudentID {studentid} is already enrolled in class with ClassID {classid}"
+        )
+    elif status == 'DROPPED':
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Student with StudentID {studentid} was dropped from class with ClassID {classid}"
+        )
+    elif status == 'WAITLISTED':
+        if class_item.get('CurrentEnrollment') >= class_item.get('MaximumEnrollment'):
+            # TODO: add to waitlist instead of raising error
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Student already waitlisted")
+                detail=f"Class with ClassID {classid} is full"
+            )
+        else:
+            # Update the status to 'ENROLLED'
+            new_status = 'ENROLLED'
+            updated_status = update_enrollment_status(studentid, classid, new_status)
+            
+            if updated_status:
+                return {"message": f"Enrolled student {studentid} in class {classid}."}
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to update enrollment status"
+                )
+    elif status is None:
+        if class_item.get('CurrentEnrollment') < class_item.get('MaximumEnrollment'):
+            new_enrollment_id = get_last_enrollment_id() + 1
+            enrollment_item = {
+                "EnrollmentID": new_enrollment_id,
+                "StudentID": studentid,
+                "ClassID": classid,
+                "EnrollmentStatus": "ENROLLED"
+            }
+            enrollments_table.put_item(Item=enrollment_item)
+
+             # Increment the CurrentEnrollment for the class
+            updated_current_enrollment = update_current_enrollment(classid, increment=True)
+
+            if updated_current_enrollment is not None:
+                return {
+                    "message": "Enrollment added successfully",
+                    "enrollment_item": enrollment_item,
+                    "updated_current_enrollment": updated_current_enrollment
+                }
+            else:
+                # Handle error if the update fails
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to update current enrollment"
+                )
+        # else:
+            # TODO: check if waitlist is not full and add to wailist if not full
+
+
+  
+    # TODO: create function to increment waitlist 
+
+
+    
+    # roles = [word.strip() for word in roles.split(",")]
+    # check_user(studentid, db)
+    
+    # classes = db.execute("SELECT * FROM Classes WHERE ClassID = ?", (classid,)).fetchone()
+    # if not classes:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND,
+    #         detail="Class not found")
+    
+    # enrolled = db.execute("SELECT * FROM Enrollments WHERE ClassID = ? AND StudentID = ? AND EnrollmentStatus='ENROLLED'", (classid, studentid)).fetchone()
+    # if enrolled:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="Student already enrolled")
+    
+    # class_section = classes["SectionNumber"]
+    # count = db.execute("SELECT COUNT() FROM Enrollments WHERE ClassID = ?", (classid,)).fetchone()[0]
+    # waitlist_count = db.execute("SELECT COUNT() FROM Waitlists WHERE ClassID = ?", (classid,)).fetchone()[0]
+    waitlist_count = r.llen(f"waitClassID_{classid}")
+    # print(count)
+    # if count < classes["MaximumEnrollment"]:
+    #     db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber) VALUES(?,?,?)",(studentid, classid, class_section))
+    #     db.commit()
+    #     return {"message": f"Enrolled student {studentid} in section {class_section} of class {classid}."}
+    # elif waitlist_count < classes["WaitlistMaximum"]:
+    #     waitlisted = r.lpos(f"waitClassID_{classid}", studentid)
+    #     # waitlisted = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
+    #     if waitlisted:
+    #         raise HTTPException(
+    #             status_code=status.HTTP_409_CONFLICT,
+    #             detail="Student already waitlisted")
 
         # max_waitlist_position = db.execute("SELECT MAX(Position) FROM Waitlists WHERE ClassID = ? AND  SectionNumber = ?",(classid,sectionid)).fetchone()[0]
         # print("Position: " + str(max_waitlist_position))
         # if not max_waitlist_position: max_waitlist_position = 0
         # db.execute("INSERT INTO Waitlists(StudentID, ClassID, SectionNumber, Position) VALUES(?,?,?,?)",(studentid, classid, class_section, max_waitlist_position + 1))
         # db.commit()
-        r.rpush(f"waitClassID_{classid}", studentid)
-        return {"message": f"Enrolled in waitlist {class_section} of class {classid}."}
-    else:
-        return {"message": f"Unable to enroll in waitlist for the class, reached the maximum number of students"}
+    r.rpush(f"waitClassID_{classid}", studentid)
+        # return {"message": f"Enrolled in waitlist {class_section} of class {classid}."}
+    # else:
+        # return {"message": f"Unable to enroll in waitlist for the class, reached the maximum number of students"}
 
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
