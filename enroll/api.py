@@ -163,10 +163,33 @@ def update_current_enrollment(class_id: int, increment: bool = True):
         return updated_item.get('CurrentEnrollment')
     else:
         return None    
+    
+
+def is_instructor_for_class(instructor_id: int, class_id: int):
+        response = classes_table.get_item(Key={"ClassID": class_id})
+        # Check if the class exists and has the specified instructor
+        if "Item" in response:
+            class_info = response["Item"]
+            return class_info.get("InstructorID") == instructor_id
+        else:
+            return False    
+        
+
+def get_students_for_class(class_id: int, enrollment_status: str):
+    response = enrollments_table.scan(
+        FilterExpression=Attr('ClassID').eq(class_id) & Attr('EnrollmentStatus').eq(enrollment_status),
+        ProjectionExpression='StudentID'
+    )
+
+    student_ids = [item.get('StudentID') for item in response.get('Items', [])]
+
+    if not student_ids:
+        return {"message": "No students found for this class"}
+    return student_ids
 
 
 ### Student related endpoints
-
+# TODO: endpoint working 
 @app.get("/list")
 def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to fetch list of available classes in catalog.
@@ -199,7 +222,7 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
 
     return classList
 
-
+# TODO: add redis and test
 @app.post("/enroll/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}", status_code=status.HTTP_201_CREATED)
 def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to enroll a student in a class.
@@ -268,7 +291,7 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
             }
             enrollments_table.put_item(Item=enrollment_item)
 
-             # Increment the CurrentEnrollment for the class
+            # Increment the CurrentEnrollment for the class
             updated_current_enrollment = update_current_enrollment(classid, increment=True)
 
             if updated_current_enrollment is not None:
@@ -334,6 +357,7 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
     # else:
         # return {"message": f"Unable to enroll in waitlist for the class, reached the maximum number of students"}
 
+# TODO: add redis and test
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to drop a class.
@@ -367,7 +391,7 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
         updated_current_enrollment = update_current_enrollment(classid, increment=False)
         if updated_status and updated_current_enrollment:
             return {
-                "message": "Class driooed updated successfully",
+                "message": "Class dropped updated successfully",
                 "updated_status": updated_status,
                 "updated_current_enrollment": updated_current_enrollment
             }
@@ -413,6 +437,7 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
         ]}
     return {"Result": [{"Student dropped from class": dropped_student} ]}
 
+# TODO: test this endpoint 
 @app.delete("/waitlistdrop/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def remove_student_from_waitlist(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to drop a class from waitlist.
@@ -463,6 +488,7 @@ def remove_student_from_waitlist(studentid: int, classid: int, name: str, userna
     # db.commit()
     return {"Element removed": studentid}
     
+# TODO: test this endpoint 
 @app.get("/waitlist/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to view a student's position on the waitlist.
@@ -489,33 +515,49 @@ def view_waitlist_position(studentid: int, classid: int, name: str, username: st
     return {message: position}
     
 ### Instructor related endpoints
-
+# TODO: add test this endpoint
 @app.get("/enrolled/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
     """API to view all students enrolled in a class.
     
     Args:
         instructorid: The instructor's ID.
+        classid: The class ID.
 
     Returns:
         A dictionary with a list of students enrolled in the instructor's classes.
     """
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(instructorid, username, name, email, roles, db)
-    instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
-    if not instructor_class:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
-        )
+    # roles = [word.strip() for word in roles.split(",")]
+    # check_user(instructorid, username, name, email, roles, db)
 
-    enrolled_students = db.execute("SELECT StudentID FROM Enrollments WHERE classID=? AND SectionNumber=? AND EnrollmentStatus='ENROLLED'",(classid,sectionid))
-    enrolled = enrolled_students.fetchall()
-    if enrolled:
-        return {"All students enrolled in this instructor's classes" : enrolled}
-    else:
+    role = check_role(instructorid)
+    if role != 'Instructor':
         raise HTTPException(
-            status_code=status.HTTP_204_NO_CONTENT
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User with UserId {instructorid} is not an instructor"
         )
+    if not is_instructor_for_class(instructorid, classid):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
+        )
+    
+    
+    
+    # instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
+    # if not instructor_class:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
+    #     )
+
+    # enrolled_students = db.execute("SELECT StudentID FROM Enrollments WHERE classID=? AND SectionNumber=? AND EnrollmentStatus='ENROLLED'",(classid,sectionid))
+    # enrolled = enrolled_students.fetchall()
+    # if enrolled:
+    #     return {"All students enrolled in this instructor's classes" : enrolled}
+    # else:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_204_NO_CONTENT
+    #     )
 
 @app.get("/dropped/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_dropped_students(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):

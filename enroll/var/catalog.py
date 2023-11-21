@@ -145,6 +145,7 @@ my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definit
 # Define the key schema and attribute definitions for the "Enrollments" table
 enrollments_key_schema = [
     {"AttributeName": "EnrollmentID", "KeyType": "HASH"},
+    {"AttributeName": "ClassID", "KeyType": "RANGE"}
 ]
 
 enrollments_attribute_definitions = [
