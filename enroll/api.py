@@ -176,16 +176,20 @@ def is_instructor_for_class(instructor_id: int, class_id: int):
         
 
 def get_students_for_class(class_id: int, enrollment_status: str):
-    response = enrollments_table.scan(
-        FilterExpression=Attr('ClassID').eq(class_id) & Attr('EnrollmentStatus').eq(enrollment_status),
+    enrolled_students = []
+    response = enrollments_table.query(
+        IndexName='ClassID-EnrollmentStatus-index',
+        KeyConditionExpression=Key('ClassID').eq(class_id) & Key('EnrollmentStatus').eq(enrollment_status),
         ProjectionExpression='StudentID'
     )
+    for item in response.get("Items", []):
+        student_info = {
+            "StudentID": item.get("StudentID"),
+            "EnrollmentStatus": item.get("EnrollmentStatus"),
+        }
+        enrolled_students.append(student_info)
 
-    student_ids = [item.get('StudentID') for item in response.get('Items', [])]
-
-    if not student_ids:
-        return {"message": "No students found for this class"}
-    return student_ids
+    return enrolled_students    
 
 
 ### Student related endpoints
@@ -200,11 +204,13 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
     Returns:
         A dictionary with a list of classes available for enrollment.
     """
-    response = classes_table.scan(
-        FilterExpression=Attr('State').eq('active')
+    response = classes_table.query(
+        IndexName='State-index',
+        KeyConditionExpression=Key('State').eq('active'),
+        ProjectionExpression='ClassID, CourseCode, SectionNumber, ClassName, Department, Capacity, CurrentEnrollment, CurrentWaitlist, InstructorID'
     )
-
-    return {"Classes": response['Items']}
+    items = response.get('Items', [])
+    return {"Classes": items}
     # if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
     #     return {"Classes": []}
 
@@ -310,7 +316,7 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
             # TODO: check if waitlist is not full and add to wailist if not full
 
 
-  
+
     # TODO: create function to increment waitlist 
 
 
@@ -368,7 +374,6 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
 
     Returns:
         A dictionary with a message indicating the student's enrollment status.
-
     """
     # roles = [word.strip() for word in roles.split(",")]
     # check_user(studentid, username, name, email, roles, db)
@@ -515,7 +520,7 @@ def view_waitlist_position(studentid: int, classid: int, name: str, username: st
     return {message: position}
     
 ### Instructor related endpoints
-# TODO: add test this endpoint
+# TODO: test this endpoint
 @app.get("/enrolled/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
     """API to view all students enrolled in a class.
@@ -542,6 +547,10 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     
+    enrolled_students = get_students_for_class(classid, 'ENROLLED')
+    if not enrolled_students:
+        raise HTTPException(status_code=404, detail="No enrolled students found for this class.")
+    return {"Enrolled Students": enrolled_students}
     
     
     # instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
@@ -559,6 +568,7 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     #         status_code=status.HTTP_204_NO_CONTENT
     #     )
 
+# TODO: test this endpoint 
 @app.get("/dropped/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_dropped_students(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
     """API to view all students dropped from a class.
@@ -569,19 +579,36 @@ def view_dropped_students(instructorid: int, classid: int, sectionid: int, name:
     Returns:
         A dictionary with a list of students dropped from the instructor's classes.
     """
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(instructorid, username, name, email, roles, db)
-    instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
-    if not instructor_class:
+    # roles = [word.strip() for word in roles.split(",")]
+    # check_user(instructorid, username, name, email, roles, db)
+    # instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
+    # if not instructor_class:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
+    #     )
+    
+    # query = "SELECT StudentID FROM Enrollments WHERE ClassID = ? AND SectionNumber = ? AND EnrollmentStatus = 'DROPPED'"
+    # dropped_students = db.execute(query, (classid, sectionid)).fetchall()
+    # if not dropped_students:
+    #     raise HTTPException(status_code=404, detail="No dropped students found for this class.")
+    # return {"Dropped Students ID": [student["StudentID"] for student in dropped_students]}
+    role = check_role(instructorid)
+    if role != 'Instructor':
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"User with UserId {instructorid} is not an instructor"
+        )
+    if not is_instructor_for_class(instructorid, classid):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     
-    query = "SELECT StudentID FROM Enrollments WHERE ClassID = ? AND SectionNumber = ? AND EnrollmentStatus = 'DROPPED'"
-    dropped_students = db.execute(query, (classid, sectionid)).fetchall()
-    if not dropped_students:
+    enrolled_students = get_students_for_class(classid, 'DROPPED')
+    if not enrolled_students:
         raise HTTPException(status_code=404, detail="No dropped students found for this class.")
-    return {"Dropped Students ID": [student["StudentID"] for student in dropped_students]}
+    return {"Enrolled Students": enrolled_students}
+
 
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{name}/{username}/{email}/{roles}")
 def drop_student_administratively(instructorid: int, classid: int, studentid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
@@ -718,25 +745,43 @@ def remove_class(classid: str, sectionid: str, db: sqlite3.Connection = Depends(
     db.commit()
     return {"Removed" : f"Course {classid} Section {sectionid}"}
 
-@app.put("/freeze/{isfrozen}", status_code=status.HTTP_204_NO_CONTENT)
-def freeze_enrollment(isfrozen: str, db: sqlite3.Connection = Depends(get_db)):
+
+# TODO: test this endpoint 
+@app.put("/freeze/{classid}", status_code=status.HTTP_204_NO_CONTENT)
+def freeze_enrollment(classid: int, db: sqlite3.Connection = Depends(get_db)):
     """API to freeze enrollment.
     
     Args:
         classid: The class ID.
 
     Returns:
-        A dictionary with a message indicating the class was added successfully.
+        A dictionary with a message indicating the class was successfully frozen.
     """
+    record = check_class_exists(classid)
+    if record.get('State') == 'active':
+        response = classes_table.update_item(
+            Key={'ClassID': classid},
+            UpdateExpression='SET State = :state',
+            ExpressionAttributeValues={':state': 'inactive'},
+            ReturnValues='UPDATED_NEW'
+        )
 
-    if (isfrozen.lower() == "true"):
-        db.execute("UPDATE Freeze SET IsFrozen = true")
-        db.commit()
-    elif (isfrozen.lower() == "false"):
-        db.execute("UPDATE Freeze SET IsFrozen = false")
-        db.commit()
-    else:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Freeze must be true or false.")
+        updated_item = response.get('Attributes')
+
+        if updated_item:
+            return {"message": "Class frozen successfully"}
+        else:
+            return {"message": "Failed to freeze class"}
+
+
+    # if (isfrozen.lower() == "true"):
+    #     db.execute("UPDATE Freeze SET IsFrozen = true")
+    #     db.commit()
+    # elif (isfrozen.lower() == "false"):
+    #     db.execute("UPDATE Freeze SET IsFrozen = false")
+    #     db.commit()
+    # else:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Freeze must be true or false.")
 
 @app.put("/change/{classid}/{newprofessorid}", status_code=status.HTTP_204_NO_CONTENT)
 def change_prof(request: Request, classid: int, newprofessorid: int, db: sqlite3.Connection = Depends(get_db)):

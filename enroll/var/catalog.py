@@ -12,7 +12,7 @@ class Catalog:
         # 'exists' if the table exists. Otherwise, it is set by 'create_table'.
         self.table = None
 
-    def create_table(self, table_name, key_schema, attribute_definitions):
+    def create_table(self, table_name, key_schema, attribute_definitions, global_secondary_indexes=None):
         """
         Creates an Amazon DynamoDB table for the catalog database.
 
@@ -28,6 +28,7 @@ class Catalog:
                     "ReadCapacityUnits": 10,
                     "WriteCapacityUnits": 10,
                 },
+                GlobalSecondaryIndexes=global_secondary_indexes
             )
             self.table.wait_until_exists()
             print(f"Table {table_name} created successfully.")
@@ -127,18 +128,33 @@ classes_key_schema = [
 
 classes_attribute_definitions = [
     {"AttributeName": "ClassID", "AttributeType": "N"},
-    {"AttributeName": "CourseCode", "AttributeType": "S"},
+    # {"AttributeName": "CourseCode", "AttributeType": "S"},
     {"AttributeName": "SectionNumber", "AttributeType": "N"},
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
     # {"AttributeName": "Capacity", "AttributeType": "N"},
     # either 'active' or 'inactive'
-    # {"AttributeName": "State", "AttributeType": "S"}
+    {"AttributeName": "State", "AttributeType": "S"}
 ]
 
+classes_global_secondary_indexes = [
+        {
+            "IndexName": "State-index",
+            "KeySchema": [
+                {"AttributeName": "State", "KeyType": "HASH"},
+                {"AttributeName": "ClassID", "KeyType": "RANGE"},
+            ],
+            "Projection": {"ProjectionType": "ALL"},  # Adjust based on your needs
+            "ProvisionedThroughput": {
+                "ReadCapacityUnits": 10,
+                "WriteCapacityUnits": 10,
+            },
+        },
+    ]
+
 # Create the "Classes" table
-my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definitions)
+my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definitions, classes_global_secondary_indexes)
 
 # ********************************** Create "Enrollments table" *********************************
 
@@ -151,13 +167,30 @@ enrollments_key_schema = [
 enrollments_attribute_definitions = [
     {"AttributeName": "EnrollmentID", "AttributeType": "N"},
     # {"AttributeName": "StudentID", "AttributeType": "N"},
-    # {"AttributeName": "ClassID", "AttributeType": "N"},
+    {"AttributeName": "ClassID", "AttributeType": "N"},
     # {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    # {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
+    {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
 ]
 
+enrollments_global_secondary_indexes = [ 
+    {
+        "IndexName": "ClassID-EnrollmentStatus-index",
+        "KeySchema": [
+                {"AttributeName": "ClassID", "KeyType": "HASH"},
+                {"AttributeName": "EnrollmentStatus", "KeyType": "RANGE"},
+        ],
+        "Projection": {"ProjectionType": "KEYS_ONLY"},
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10,
+        },
+    },
+    
+]
+
+
 # Create the "Enrollments" table
-my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attribute_definitions)
+my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attribute_definitions, enrollments_global_secondary_indexes)
 
 
 
