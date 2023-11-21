@@ -240,9 +240,16 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
             # Update the status to 'ENROLLED'
             new_status = 'ENROLLED'
             updated_status = update_enrollment_status(studentid, classid, new_status)
+
+            # Increment the CurrentEnrollment for the class
+            updated_current_enrollment = update_current_enrollment(classid, increment=True)
             
-            if updated_status:
-                return {"message": f"Enrolled student {studentid} in class {classid}."}
+            if updated_status and updated_current_enrollment:
+                return {
+                    "message": "Enrollment updated successfully",
+                    "updated_status": updated_status,
+                    "updated_current_enrollment": updated_current_enrollment
+                }
             else:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -327,20 +334,50 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
 
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(studentid, username, name, email, roles, db)
+    # roles = [word.strip() for word in roles.split(",")]
+    # check_user(studentid, username, name, email, roles, db)
     # Try to Remove student from the class
-    
-    dropped_student = db.execute("SELECT StudentID FROM Enrollments WHERE StudentID = ? AND ClassID = ? AND SectionNumber = ?",(studentid,classid,sectionid)).fetchone()
-    if not dropped_student:
+    status = get_enrollment_status(studentid, classid)
+    if status == 'DROPPED':
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Student and class combination not found")
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Student with StudentID {studentid} is already dropped from class with ClassID {classid}"
+        )
+    if status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with StudentID {studentid} is not enrolled in class with ClassID {classid}"
+        )
+    elif status == 'ENROLLED':
+        new_status = 'DROPPED'
+        updated_status = update_enrollment_status(studentid, classid, new_status)
+        # Decrement the CurrentEnrollment for the class
+        updated_current_enrollment = update_current_enrollment(classid, increment=False)
+        if updated_status and updated_current_enrollment:
+            return {
+                "message": "Class driooed updated successfully",
+                "updated_status": updated_status,
+                "updated_current_enrollment": updated_current_enrollment
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update enrollment status"
+            )
 
-    query = db.execute("UPDATE Enrollments SET EnrollmentStatus = 'DROPPED' WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
-    db.commit()
+
+
+    # dropped_student = db.execute("SELECT StudentID FROM Enrollments WHERE StudentID = ? AND ClassID = ? AND SectionNumber = ?",(studentid,classid,sectionid)).fetchone()
+    # if not dropped_student:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND, 
+    #         detail="Student and class combination not found")
+
+    # query = db.execute("UPDATE Enrollments SET EnrollmentStatus = 'DROPPED' WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
+    # db.commit()
     # Add student to class if there are students in the waitlist for this class
     # next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
+    # TODO: add redis according to dynamodb 
     next_on_waitlist = r.lpop(f"waitClassID_{classid}")
     if next_on_waitlist:
         try:
@@ -366,9 +403,34 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
 
 @app.delete("/waitlistdrop/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def remove_student_from_waitlist(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(studentid, username, name, email, roles, db)
+    # roles = [word.strip() for word in roles.split(",")]
+    # check_user(studentid, username, name, email, roles, db)
     # exists = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
+    status = get_enrollment_status(studentid, classid)
+    if status == 'DROPPED':
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Student with StudentID {studentid} is already dropped from class with ClassID {classid}"
+        )
+    if status is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Student with StudentID {studentid} is not enrolled in class with ClassID {classid}"
+        )
+    elif status == 'ENROLLED':
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Student with StudentID {studentid} is enrolled in class with ClassID {classid}"
+        )
+    if status == 'WAITLISTED':
+        new_status = 'DROPPED'
+        updated_status = update_enrollment_status(studentid, classid, new_status)
+        if not updated_status:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Student was not on the waitlist"
+            )
+
     exists = r.lrem(f"waitClassID_{classid}", 0, studentid)
     if exists == 0:
         raise HTTPException(
@@ -381,7 +443,7 @@ def remove_student_from_waitlist(studentid: int, classid: int, name: str, userna
     return {"Element removed": studentid}
     
 @app.get("/waitlist/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
-def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
+def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
     position = r.lpos(f"waitClassID_{classid}", studentid)
