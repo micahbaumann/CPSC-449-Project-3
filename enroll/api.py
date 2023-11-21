@@ -178,7 +178,7 @@ def remove_student_from_waitlist(studentid: int, classid: int, name: str, userna
 def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
-    position = r.lpos(f"waitClassID_{classid}", studentid)
+    position = redis.lpos(f"waitClassID_{classid}", studentid)
     
     if position:
         message = f"Student {studentid} is on the waitlist for class {classid} in position"
@@ -228,7 +228,7 @@ def view_dropped_students(instructorid: int, classid: int, sectionid: int, name:
     return {"Dropped Students ID": [student["StudentID"] for student in dropped_students]}
 
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{name}/{username}/{email}/{roles}")
-def drop_student_administratively(instructorid: int, classid: int, studentid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+def drop_student_administratively(instructorid: int, classid: int, studentid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=?",(classid,)).fetchone()
@@ -250,7 +250,7 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
         raise HTTPException(status_code=404, detail="Student, class, or section not found.")
     
     # Add student to class if there are students in the waitlist for this class
-    next_on_waitlist = lpop(f"waitClassID_{classid}")
+    next_on_waitlist = redis.lpop(f"waitClassID_{classid}")
     if next_on_waitlist:
         try:
             db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber,EnrollmentStatus) \
