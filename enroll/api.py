@@ -8,7 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 from botocore.exceptions import ClientError
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Key, Attr
 
 WAITLIST_MAXIMUM = 15
 MAXIMUM_WAITLISTED_CLASSES = 3
@@ -177,7 +177,9 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
     Returns:
         A dictionary with a list of classes available for enrollment.
     """
-    response = classes_table.scan()
+    response = classes_table.scan(
+        FilterExpression=Attr('State').eq('active')
+    )
 
     return {"Classes": response['Items']}
     # if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
@@ -334,6 +336,16 @@ def enroll_student_in_class(studentid: int, classid: int, sectionid: int, name: 
 
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
+    """API to drop a class.
+    
+    Args:
+        studentid: The student's ID.
+        classid: The class ID.
+
+    Returns:
+        A dictionary with a message indicating the student's enrollment status.
+
+    """
     # roles = [word.strip() for word in roles.split(",")]
     # check_user(studentid, username, name, email, roles, db)
     # Try to Remove student from the class
@@ -403,6 +415,15 @@ def drop_student_from_class(studentid: int, classid: int, sectionid: int, name: 
 
 @app.delete("/waitlistdrop/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def remove_student_from_waitlist(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
+    """API to drop a class from waitlist.
+    
+    Args:
+        studentid: The student's ID.
+        classid: The class ID.
+
+    Returns:
+        A dictionary with a message indicating the student's enrollment status.
+    """
     # roles = [word.strip() for word in roles.split(",")]
     # check_user(studentid, username, name, email, roles, db)
     # exists = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
@@ -444,6 +465,15 @@ def remove_student_from_waitlist(studentid: int, classid: int, name: str, userna
     
 @app.get("/waitlist/{studentid}/{classid}/{name}/{username}/{email}/{roles}")
 def view_waitlist_position(studentid: int, classid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
+    """API to view a student's position on the waitlist.
+
+    Args:
+        studentid: The student's ID.
+        classid: The class ID.
+
+    Returns:
+        A dictionary with a message indicating the student's position on the waitlist.
+    """
     roles = [word.strip() for word in roles.split(",")]
     check_user(studentid, username, name, email, roles, db)
     position = r.lpos(f"waitClassID_{classid}", studentid)
@@ -462,6 +492,14 @@ def view_waitlist_position(studentid: int, classid: int, name: str, username: st
 
 @app.get("/enrolled/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+    """API to view all students enrolled in a class.
+    
+    Args:
+        instructorid: The instructor's ID.
+
+    Returns:
+        A dictionary with a list of students enrolled in the instructor's classes.
+    """
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
@@ -481,6 +519,14 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
 
 @app.get("/dropped/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_dropped_students(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+    """API to view all students dropped from a class.
+    
+    Args:
+        instructorid: The instructor's ID.
+
+    Returns:
+        A dictionary with a list of students dropped from the instructor's classes.
+    """
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
@@ -497,6 +543,16 @@ def view_dropped_students(instructorid: int, classid: int, sectionid: int, name:
 
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{name}/{username}/{email}/{roles}")
 def drop_student_administratively(instructorid: int, classid: int, studentid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
+    """API to drop a student from a class.
+    
+    Args:
+        instructorid: The instructor's ID.
+        classid: The class ID.
+        studentid: The student's ID.
+
+    Returns:
+        A dictionary with a message indicating the student's enrollment status.
+    """
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=?",(classid,)).fetchone()
@@ -537,6 +593,14 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
 
 @app.get("/waitlist/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
+    """API to view the waitlist for a class.
+    
+    Args:
+        instructorid: The instructor's ID.
+
+    Returns:
+        A dictionary with a list of students on the waitlist for the instructor's classes.
+    """
     roles = [word.strip() for word in roles.split(",")]
     check_user(instructorid, username, name, email, roles, db)
     instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
@@ -554,6 +618,20 @@ def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, us
 
 @app.post("/add/{classid}/{sectionid}/{professorid}/{enrollmax}/{waitmax}", status_code=status.HTTP_201_CREATED)
 def add_class(request: Request, classid: str, sectionid: str, professorid: int, enrollmax: int, waitmax: int, db: sqlite3.Connection = Depends(get_db)):
+    """API to add a class to the catalog.
+    
+    Args:
+        classid: The class ID.
+        sectionid: The section ID.
+        professorid: The professor's ID.
+        enrollmax: The maximum number of students that can enroll in the class.
+        department: The department the class belongs to.
+        name: The name of the class.
+        state: The status of the class.
+
+    Returns:
+        A dictionary with a message indicating the class was added successfully.
+    """
     instructor_req = requests.get(f"http://localhost:5200/user/get/{professorid}", headers={"Authorization": request.headers.get("Authorization")})
     instructor_info = instructor_req.json()
 
@@ -580,7 +658,15 @@ def add_class(request: Request, classid: str, sectionid: str, professorid: int, 
 
 @app.delete("/remove/{classid}/{sectionid}")
 def remove_class(classid: str, sectionid: str, db: sqlite3.Connection = Depends(get_db)):
+    """API to remove a class from the catalog.
+    
+    Args:
+        classid: The class ID.
 
+    Returns:
+        
+
+    """
     class_found = db.execute("SELECT * FROM Classes WHERE ClassID = ? AND SectionNumber = ?",(classid,sectionid)).fetchone()
     if not class_found:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Class {classid} Section {sectionid} does not exist in database.")
@@ -592,6 +678,15 @@ def remove_class(classid: str, sectionid: str, db: sqlite3.Connection = Depends(
 
 @app.put("/freeze/{isfrozen}", status_code=status.HTTP_204_NO_CONTENT)
 def freeze_enrollment(isfrozen: str, db: sqlite3.Connection = Depends(get_db)):
+    """API to freeze enrollment.
+    
+    Args:
+        classid: The class ID.
+
+    Returns:
+        A dictionary with a message indicating the class was added successfully.
+    """
+
     if (isfrozen.lower() == "true"):
         db.execute("UPDATE Freeze SET IsFrozen = true")
         db.commit()
