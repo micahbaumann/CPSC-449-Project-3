@@ -12,7 +12,7 @@ class Catalog:
         # 'exists' if the table exists. Otherwise, it is set by 'create_table'.
         self.table = None
 
-    def create_table(self, table_name, key_schema, attribute_definitions):
+    def create_table(self, table_name, key_schema, attribute_definitions, global_secondary_indexes=None):
         """
         Creates an Amazon DynamoDB table for the catalog database.
 
@@ -28,6 +28,7 @@ class Catalog:
                     "ReadCapacityUnits": 10,
                     "WriteCapacityUnits": 10,
                 },
+                GlobalSecondaryIndexes=global_secondary_indexes
             )
             self.table.wait_until_exists()
             print(f"Table {table_name} created successfully.")
@@ -121,42 +122,75 @@ my_catalog.create_table("Users", users_key_schema, users_attribute_definitions)
 
 # Define the key schema and attribute definitions for the "Classes" table
 classes_key_schema = [
-    {"AttributeName": "CourseCode", "KeyType": "HASH"},
+    {"AttributeName": "ClassID", "KeyType": "HASH"},
     {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
 ]
 
 classes_attribute_definitions = [
-    # {"AttributeName": "ClassID", "AttributeType": "N"},
-    {"AttributeName": "CourseCode", "AttributeType": "S"},
+    {"AttributeName": "ClassID", "AttributeType": "N"},
+    # {"AttributeName": "CourseCode", "AttributeType": "S"},
     {"AttributeName": "SectionNumber", "AttributeType": "N"},
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
     # {"AttributeName": "Capacity", "AttributeType": "N"},
     # either 'active' or 'inactive'
-    # {"AttributeName": "State", "AttributeType": "S"}
+    {"AttributeName": "State", "AttributeType": "S"}
 ]
 
+classes_global_secondary_indexes = [
+        {
+            "IndexName": "State-index",
+            "KeySchema": [
+                {"AttributeName": "State", "KeyType": "HASH"},
+                {"AttributeName": "ClassID", "KeyType": "RANGE"},
+            ],
+            "Projection": {"ProjectionType": "ALL"},  # Adjust based on your needs
+            "ProvisionedThroughput": {
+                "ReadCapacityUnits": 10,
+                "WriteCapacityUnits": 10,
+            },
+        },
+    ]
+
 # Create the "Classes" table
-my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definitions)
+my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definitions, classes_global_secondary_indexes)
 
 # ********************************** Create "Enrollments table" *********************************
 
 # Define the key schema and attribute definitions for the "Enrollments" table
 enrollments_key_schema = [
     {"AttributeName": "EnrollmentID", "KeyType": "HASH"},
+    {"AttributeName": "ClassID", "KeyType": "RANGE"}
 ]
 
 enrollments_attribute_definitions = [
     {"AttributeName": "EnrollmentID", "AttributeType": "N"},
     # {"AttributeName": "StudentID", "AttributeType": "N"},
-    # {"AttributeName": "ClassID", "AttributeType": "N"},
+    {"AttributeName": "ClassID", "AttributeType": "N"},
     # {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    # {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
+    {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
 ]
 
+enrollments_global_secondary_indexes = [ 
+    {
+        "IndexName": "ClassID-EnrollmentStatus-index",
+        "KeySchema": [
+                {"AttributeName": "ClassID", "KeyType": "HASH"},
+                {"AttributeName": "EnrollmentStatus", "KeyType": "RANGE"},
+        ],
+        "Projection": {"ProjectionType": "KEYS_ONLY"},
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10,
+        },
+    },
+    
+]
+
+
 # Create the "Enrollments" table
-my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attribute_definitions)
+my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attribute_definitions, enrollments_global_secondary_indexes)
 
 
 
@@ -186,20 +220,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "inactive"},
-    {"ClassID": 1, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "State": "active"},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 2, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "inactive"},
-    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
     
-    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "State": "inactive"},
-    {"ClassID": 3, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "State": "active"},
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 4, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "State": "inactive"},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "State": "active"},
+    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "State": "inactive"},
-    {"ClassID": 5, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "State": "active"},
+    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
 ]
 
 my_catalog.put_items("Classes", classes_items)
@@ -207,17 +241,17 @@ my_catalog.put_items("Classes", classes_items)
 
 # Populate the "Enrollments" table
 enrollments_items = [
-    {"EnrollmentID": 1, "StudentID": 2, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "DROPPED"},
-    {"EnrollmentID": 2, "StudentID": 2, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "WAITLISTED"},
-    {"EnrollmentID": 3, "StudentID": 2, "CourseCode": "PHYS-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 4, "StudentID": 2, "CourseCode": "MATH-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 5, "StudentID": 2, "CourseCode": "ENG-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 6, "StudentID": 3, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 7, "StudentID": 3, "CourseCode": "CHEM-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 8, "StudentID": 3, "CourseCode": "PHYS-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 9, "StudentID": 3, "CourseCode": "MATH-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 10, "StudentID": 3, "CourseCode": "ENG-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 11, "StudentID": 4, "CourseCode": "CPSC-101", "SectionNumber": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 1, "StudentID": 2, "ClassID": 1, "EnrollmentStatus": "DROPPED"},
+    {"EnrollmentID": 2, "StudentID": 2, "ClassID": 2, "EnrollmentStatus": "WAITLISTED"},
+    {"EnrollmentID": 3, "StudentID": 2, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 4, "StudentID": 2, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 5, "StudentID": 2, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 6, "StudentID": 3, "ClassID": 6, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 7, "StudentID": 3, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 8, "StudentID": 3, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 11, "StudentID": 4, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
     # Add more enrollment items as needed
 ]
 
