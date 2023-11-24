@@ -205,11 +205,7 @@ def add_to_waitlist(class_id: int, student_id: int, redis):
         
 
 ### Student related endpoints
-<<<<<<< HEAD
 # TODO: endpoint working, returns all information for a class
-=======
-# Redis Tested
->>>>>>> 46f10ae (Integrated Redis)
 @app.get("/list")
 def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to fetch list of available classes in catalog.
@@ -573,14 +569,6 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     """
     # roles = [word.strip() for word in roles.split(",")]
     # check_user(instructorid, username, name, email, roles, db)
-<<<<<<< HEAD
-    role = check_role(instructorid)
-    if role != 'Instructor':
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"User with UserId {instructorid} is not an instructor"
-        )
-=======
 
     # role = check_role(instructorid)
     # if role != 'Instructor':
@@ -588,7 +576,6 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail=f"User with UserId {instructorid} is not an instructor"
     #     )
->>>>>>> 46f10ae (Integrated Redis)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
