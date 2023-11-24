@@ -235,20 +235,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 7, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
-    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 7, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 7, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 7, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 7, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
-    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 7, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 8, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
-    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 8, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
+    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 8, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
-    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 8, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
+    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
 ]
 
 my_catalog.put_items("Classes", classes_items)
