@@ -207,7 +207,7 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
     response = classes_table.query(
         IndexName='State-index',
         KeyConditionExpression=Key('State').eq('active'),
-        ProjectionExpression='ClassID, CourseCode, SectionNumber, ClassName, Department, Capacity, CurrentEnrollment, CurrentWaitlist, InstructorID'
+        ProjectionExpression='ClassID, CourseCode, SectionNumber, ClassName, Department, MaxCapacity, CurrentEnrollment, CurrentWaitlist, InstructorID'
     )
     items = response.get('Items', [])
     return {"Classes": items}

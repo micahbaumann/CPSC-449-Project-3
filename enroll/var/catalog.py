@@ -12,7 +12,7 @@ class Catalog:
         # 'exists' if the table exists. Otherwise, it is set by 'create_table'.
         self.table = None
 
-    def create_table(self, table_name, key_schema, attribute_definitions, global_secondary_indexes=None):
+    def create_table(self, table_name, key_schema, attribute_definitions, global_secondary_indexes):
         """
         Creates an Amazon DynamoDB table for the catalog database.
 
@@ -111,11 +111,26 @@ users_attribute_definitions = [
     # {"AttributeName": "Email", "AttributeType": "S"},
     # {"AttributeName": "FirstName", "AttributeType": "S"},
     # {"AttributeName": "LastName", "AttributeType": "S"},
-    # {"AttributeName": "Role", "AttributeType": "S"}
+    {"AttributeName": "Role", "AttributeType": "S"}
 ]
 
+classes_global_secondary_indexes = [
+        {
+            "IndexName": "Role-index",
+            "KeySchema": [
+                {"AttributeName": "Role", "KeyType": "HASH"},
+                {"AttributeName": "UserId", "KeyType": "RANGE"},
+            ],
+            "Projection": {"ProjectionType": "ALL"},
+            "ProvisionedThroughput": {
+                "ReadCapacityUnits": 10,
+                "WriteCapacityUnits": 10,
+            },
+        },
+    ]
+
 # Create the "Users" table
-my_catalog.create_table("Users", users_key_schema, users_attribute_definitions)
+my_catalog.create_table("Users", users_key_schema, users_attribute_definitions, classes_global_secondary_indexes)
 
 
 # ********************************** Create "Classes table" *************************************
@@ -133,7 +148,7 @@ classes_attribute_definitions = [
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
-    # {"AttributeName": "Capacity", "AttributeType": "N"},
+    # {"AttributeName": "MaxCapacity", "AttributeType": "N"},
     # either 'active' or 'inactive'
     {"AttributeName": "State", "AttributeType": "S"}
 ]
@@ -145,7 +160,7 @@ classes_global_secondary_indexes = [
                 {"AttributeName": "State", "KeyType": "HASH"},
                 {"AttributeName": "ClassID", "KeyType": "RANGE"},
             ],
-            "Projection": {"ProjectionType": "ALL"},  # Adjust based on your needs
+            "Projection": {"ProjectionType": "ALL"},
             "ProvisionedThroughput": {
                 "ReadCapacityUnits": 10,
                 "WriteCapacityUnits": 10,
@@ -220,20 +235,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "Capacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "Capacity": 30, "State": "active"},
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "State": "active"},
     
-    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "Capacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "Capacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
     
-    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "Capacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
+    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
 ]
 
 my_catalog.put_items("Classes", classes_items)
