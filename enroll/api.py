@@ -180,7 +180,7 @@ def get_students_for_class(class_id: int, enrollment_status: str):
     response = enrollments_table.query(
         IndexName='ClassID-EnrollmentStatus-index',
         KeyConditionExpression=Key('ClassID').eq(class_id) & Key('EnrollmentStatus').eq(enrollment_status),
-        ProjectionExpression='StudentID'
+        ProjectionExpression='StudentID, EnrollmentStatus'
     )
     for item in response.get("Items", []):
         student_info = {
@@ -193,7 +193,7 @@ def get_students_for_class(class_id: int, enrollment_status: str):
 
 
 ### Student related endpoints
-# TODO: endpoint working 
+# TODO: endpoint working, returns all information for a class
 @app.get("/list")
 def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_redis)):
     """API to fetch list of available classes in catalog.
@@ -520,7 +520,7 @@ def view_waitlist_position(studentid: int, classid: int, name: str, username: st
     return {message: position}
     
 ### Instructor related endpoints
-# TODO: test this endpoint
+# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS
 @app.get("/enrolled/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
     """API to view all students enrolled in a class.
@@ -534,7 +534,6 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     """
     # roles = [word.strip() for word in roles.split(",")]
     # check_user(instructorid, username, name, email, roles, db)
-
     role = check_role(instructorid)
     if role != 'Instructor':
         raise HTTPException(
@@ -546,7 +545,6 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
-    
     enrolled_students = get_students_for_class(classid, 'ENROLLED')
     if not enrolled_students:
         raise HTTPException(status_code=404, detail="No enrolled students found for this class.")
@@ -568,7 +566,7 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     #         status_code=status.HTTP_204_NO_CONTENT
     #     )
 
-# TODO: test this endpoint 
+# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, errors working as well
 @app.get("/dropped/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
 def view_dropped_students(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db)):
     """API to view all students dropped from a class.
