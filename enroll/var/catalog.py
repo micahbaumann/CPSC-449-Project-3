@@ -138,13 +138,13 @@ my_catalog.create_table("Users", users_key_schema, users_attribute_definitions, 
 # Define the key schema and attribute definitions for the "Classes" table
 classes_key_schema = [
     {"AttributeName": "ClassID", "KeyType": "HASH"},
-    {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
+    # {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
 ]
 
 classes_attribute_definitions = [
     {"AttributeName": "ClassID", "AttributeType": "N"},
     # {"AttributeName": "CourseCode", "AttributeType": "S"},
-    {"AttributeName": "SectionNumber", "AttributeType": "N"},
+    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
@@ -194,7 +194,7 @@ enrollments_global_secondary_indexes = [
                 {"AttributeName": "ClassID", "KeyType": "HASH"},
                 {"AttributeName": "EnrollmentStatus", "KeyType": "RANGE"},
         ],
-        "Projection": {"ProjectionType": "KEYS_ONLY"},
+        "Projection": {"ProjectionType": "ALL"},
         "ProvisionedThroughput": {
             "ReadCapacityUnits": 10,
             "WriteCapacityUnits": 10,
@@ -235,20 +235,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 7, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 7, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
     
-    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "State": "active"},
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 7, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 7, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
     
-    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 7, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
+    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 7, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
     
-    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 8, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
+    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 8, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
     
-    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive"},
-    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active"},
+    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 8, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive"},
+    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 8, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active"},
 ]
 
 my_catalog.put_items("Classes", classes_items)
@@ -267,7 +267,16 @@ enrollments_items = [
     {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
     {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
     {"EnrollmentID": 11, "StudentID": 4, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
-    # Add more enrollment items as needed
+    # ENROLLMENTS FOR TESTING CLASS ID 1 FOR INSTRUCTOR ID 7
+    {"EnrollmentID": 12, "StudentID": 4, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 13, "StudentID": 5, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 14, "StudentID": 6, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    # FOR TESTING CLADD ID 2 FOR INSTRUCTOR ID 7
+    {"EnrollmentID": 15, "StudentID": 4, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 16, "StudentID": 5, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 17, "StudentID": 6, "ClassID": 2, "EnrollmentStatus": "ENROLLED"}
+
+
 ]
 
 my_catalog.put_items("Enrollments", enrollments_items)
