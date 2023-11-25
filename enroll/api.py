@@ -10,8 +10,6 @@ from pydantic import BaseModel
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
 
-WAITLIST_MAXIMUM = 15
-MAXIMUM_WAITLISTED_CLASSES = 3
 KRAKEND_PORT = "5400"
 
 # start dynamo db
@@ -159,18 +157,45 @@ def get_students_for_class(class_id: int, enrollment_status: str):
     return enrolled_students    
 
 def add_to_waitlist(class_id: int, student_id: int, redis):
-    response = classes_table.query(
+    response_class = classes_table.query(
         KeyConditionExpression=Key('ClassID').eq(class_id)
     )
-    new_response = retrieve_enrollment_record_id(student_id, class_id)
-    updated_status = update_enrollment_status(new_response, 'WAITLISTED')
-    if not updated_status:
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to update enrollment status"
-        )
-    if redis.llen(f"waitClassID_{class_id}") < response["Items"][0]["WaitlistMaximum"]:
+    # new_response = retrieve_enrollment_record_id(student_id, class_id)
+    # updated_status = update_enrollment_status(new_response, 'WAITLISTED')
+    # if not updated_status:
+    #     raise HTTPException(
+    #         status_code=500,
+    #         detail="Failed to update enrollment status"
+    #     )
+    response = enrollments_table.scan(
+        ProjectionExpression='EnrollmentID',
+        Select='SPECIFIC_ATTRIBUTES',
+    )
+    items = response.get('Items', [])
+
+    # Find the highest ClassID
+    highest_enrollment_id = 0
+    for item in items:
+        enrollment_id = item.get('EnrollmentID', 0)
+        
+        if enrollment_id > highest_enrollment_id:
+            highest_enrollment_id = enrollment_id
+
+    # Calculate the new ClassID
+    new_enrollment_id = highest_enrollment_id + 1
+
+    enrollment_item = {
+        "EnrollmentID": new_enrollment_id,
+        "StudentID": student_id,
+        "ClassID": class_id,
+        "EnrollmentState": "WAITLISTED"
+    }
+    enrollments_table.put_item(Item=enrollment_item)
+
+
+    if redis.llen(f"waitClassID_{class_id}") < response_class["Items"][0]["WaitlistMaximum"]:
         redis.rpush(f"waitClassID_{class_id}", student_id)
+        return True
     else:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -224,8 +249,8 @@ def retrieve_enrollment_record_id(student_id: int, class_id: int):
         ProjectionExpression='EnrollmentID',
         Limit=1
     )
-
-    enrollment_item = response.get('Items')[0] if 'Items' in response else None
+    # return response.get('Items')
+    enrollment_item = response.get('Items')[0] if 'Items' in response and len(response.get('Items')) != 0 else None
 
     if enrollment_item:
         return enrollment_item.get('EnrollmentID')
@@ -282,13 +307,13 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
     status = get_enrollment_status(studentid, classid)
     if status == 'ENROLLED':
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Student with StudentID {studentid} is already enrolled in class with ClassID {classid}"
         )
 
     elif status == 'WAITLISTED':
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Student with StudentID {studentid} is already on the waitlist for class with ClassID {classid}"
         )
     
@@ -331,14 +356,18 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             else:
                 # Handle error if the update fails
                 raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status_code=500,
                     detail="Failed to update current enrollment"
                 )
         else:
-            add_to_waitlist(classid, studentid, r)
+            if add_to_waitlist(classid, studentid, r):
+                return {
+                    "message": "Student added to waitlist",
+                }
+            
     else:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to update current enrollment"
         )
 
@@ -483,32 +512,32 @@ def remove_student_from_waitlist(studentid: int, classid: int, username: str, em
     status = get_enrollment_status(studentid, classid)
     if status == 'DROPPED':
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Student with StudentID {studentid} is already dropped from class with ClassID {classid}"
         )
     if status is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=f"Student with StudentID {studentid} is not enrolled in class with ClassID {classid}"
         )
     elif status == 'ENROLLED':
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Student with StudentID {studentid} is enrolled in class with ClassID {classid}"
         )
     if status == 'WAITLISTED':
         new_status = 'DROPPED'
-        updated_status = update_enrollment_status(studentid, classid, new_status)
+        updated_status = update_enrollment_status(retrieve_enrollment_record_id(studentid, classid), new_status)
         if not updated_status:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail="Student was not on the waitlist"
             )
         
         exists = r.lrem(f"waitClassID_{classid}", 0, studentid)
         if exists == 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=400,
                 detail={"Error": "No such student found in the given class on the waitlist"}
             )
         
@@ -868,5 +897,5 @@ def freeze_enrollment(classid: str, studentid:str, db = Depends(get_redis)):
 
 @app.get("/waitt/{classid}/{studentid}")
 def freeze_enrollment(classid: int, studentid: int, db = Depends(get_redis)):
-    add_to_waitlist(classid, studentid, db)
-    return True
+    id = retrieve_enrollment_record_id(studentid, classid)
+    return id#update_enrollment_status(id, "WAITLIST")
