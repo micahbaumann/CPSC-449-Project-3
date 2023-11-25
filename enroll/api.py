@@ -262,7 +262,7 @@ def add_to_waitlist(class_id: int, student_id: int, redis):
             detail=f"Class and Waitlist with ClassID {class_id} are full"
         )
     
-    
+
 ### Student related endpoints
 # TODO: endpoint working, returns all information for a class
 @app.get("/list")
@@ -324,10 +324,24 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
         )
     # TODO: either allow or not allow to enroll if dropped 
     elif status == 'DROPPED':
-        raise HTTPException(
-            status_code=409,
-            detail=f"Student with StudentID {studentid} was dropped from class with ClassID {classid}"
-        )
+        if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
+            response = retrieve_enrollment_record_id(studentid, classid)
+            updated_status = update_enrollment_status(response, 'ENROLLED')
+            # Increment the CurrentEnrollment for the class
+            updated_current_enrollment = update_current_enrollment(classid, increment=True)
+            if updated_current_enrollment is not None:
+                return {
+                    "message": "Enrollment added successfully",
+                    "updated_status": updated_status,
+                    "updated_current_enrollment": updated_current_enrollment
+                }
+            else:
+                # Handle error if the update fails
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to update current enrollment"
+                )
+            
     elif status is None:
         if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
             response = enrollments_table.scan(
@@ -336,7 +350,7 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             )
             items = response.get('Items', [])
 
-            # Find the highest ClassID
+            # Find the highest EnrollmentID
             highest_enrollment_id = 0
             for item in items:
                 enrollment_id = item.get('EnrollmentID', 0)
