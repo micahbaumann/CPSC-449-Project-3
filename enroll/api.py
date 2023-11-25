@@ -36,13 +36,14 @@ def get_redis():
 settings = Settings()
 app = FastAPI()
 
-def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqlite3.Connection = Depends(get_db)) -> bool:
-    """return true if value found, false if not found"""
-    vals = db.execute(f"SELECT * FROM {table_name} WHERE {id_name} = ?",(id_val,)).fetchone()
-    if vals:
-        return True
-    else:
-        return False
+# TODO: remove this function
+# def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqlite3.Connection = Depends(get_db)) -> bool:
+#     """return true if value found, false if not found"""
+#     vals = db.execute(f"SELECT * FROM {table_name} WHERE {id_name} = ?",(id_val,)).fetchone()
+#     if vals:
+#         return True
+#     else:
+#         return False
 
 
 def check_user(id_val: int, username: str, email: str):
@@ -730,8 +731,9 @@ def add_class(request: Request, classid: str, sectionid: str, professorid: int, 
     return {"New Class Added":f"Course {classid} Section {sectionid}"}
 
 # TODO: Test, add dynamo, add redis
-@app.delete("/remove/{classid}/{sectionid}")
-def remove_class(classid: str, sectionid: str, db: sqlite3.Connection = Depends(get_db)):
+# TODO: probably need to drop wailist for this class in redis
+@app.delete("/remove/{classid}")
+def remove_class(classid: str):
     """API to remove a class from the catalog.
     
     Args:
@@ -741,56 +743,72 @@ def remove_class(classid: str, sectionid: str, db: sqlite3.Connection = Depends(
         
 
     """
-    class_found = db.execute("SELECT * FROM Classes WHERE ClassID = ? AND SectionNumber = ?",(classid,sectionid)).fetchone()
-    if not class_found:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Class {classid} Section {sectionid} does not exist in database.")
-    db.execute("DELETE FROM Classes WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
-    db.execute("DELETE FROM InstructorClasses WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
-    db.execute("DELETE FROM Enrollments WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
-    db.commit()
-    return {"Removed" : f"Course {classid} Section {sectionid}"}
+    class_item = check_class_exists(classid)
+    if class_item.get('CurrentEnrollment') > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Class with ClassID {classid} has enrolled students"
+        )
+    response = classes_table.delete_item(Key={'ClassID': classid})
+    if response.get('ResponseMetadata').get('HTTPStatusCode') == 200:
+        return {"message": f"Class with ClassID {classid} deleted successfully"}
+    else:
+        return {"message": f"Failed to delete class with ClassID {classid}"}
+
+    # class_found = db.execute("SELECT * FROM Classes WHERE ClassID = ? AND SectionNumber = ?",(classid,sectionid)).fetchone()
+    # if not class_found:
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Class {classid} Section {sectionid} does not exist in database.")
+    # db.execute("DELETE FROM Classes WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
+    # db.execute("DELETE FROM InstructorClasses WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
+    # db.execute("DELETE FROM Enrollments WHERE ClassID =? AND SectionNumber =?", (classid, sectionid))
+    # db.commit()
+    # return {"Removed" : f"Course {classid} Section {sectionid}"}
 
 
-# TODO: test this endpoint 
-@app.put("/freeze/{classid}", status_code=status.HTTP_204_NO_CONTENT)
-def freeze_enrollment(classid: int, db: sqlite3.Connection = Depends(get_db)):
-    """API to freeze enrollment.
+# TODO: endpoint tested and fully working, works in krakend
+@app.put("/state/{classid}/{state}")
+def state_enrollment(classid: int, state: str):
+    """API to change class between active and inactive.
     
     Args:
         classid: The class ID.
+        state: The desired state for the class.
 
     Returns:
-        A dictionary with a message indicating the class was successfully frozen.
+        A dictionary with a message indicating the class was successfully updated.
     """
     record = check_class_exists(classid)
-    if record.get('State') == 'active':
-        response = classes_table.update_item(
-            Key={'ClassID': classid},
-            UpdateExpression='SET State = :state',
-            ExpressionAttributeValues={':state': 'inactive'},
-            ReturnValues='UPDATED_NEW'
-        )
+    
+    if state not in ['active', 'inactive']:
+        return {"message": "Invalid state provided"}
+    if record.get('State') == state:
+        return {"message": f"Class is already in the {state} state"}
+    response = classes_table.update_item(
+        Key={'ClassID': classid},
+        UpdateExpression='SET #state_attribute = :state',
+        ExpressionAttributeValues={':state': state},
+        ExpressionAttributeNames={'#state_attribute': 'State'},
+        ReturnValues='UPDATED_NEW'
+    )
+    updated_item = response.get('Attributes')
+    if updated_item:
+        return {"message": f"Class updated to {state} successfully"}
+    else:
+        return {"message": f"Failed to update class to {state}"}
 
-        updated_item = response.get('Attributes')
 
-        if updated_item:
-            return {"message": "Class frozen successfully"}
-        else:
-            return {"message": "Failed to freeze class"}
-
-
-    # if (isfrozen.lower() == "true"):
-    #     db.execute("UPDATE Freeze SET IsFrozen = true")
-    #     db.commit()
-    # elif (isfrozen.lower() == "false"):
-    #     db.execute("UPDATE Freeze SET IsFrozen = false")
-    #     db.commit()
-    # else:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Freeze must be true or false.")
-
-# TODO: Test, add dynamo, add redis
-@app.put("/change/{classid}/{newprofessorid}", status_code=status.HTTP_204_NO_CONTENT)
+# TODO: ENDPOINT WORKING, WORKS WITH KRAKEND
+@app.put("/change/{classid}/{newprofessorid}")
 def change_prof(request: Request, classid: int, newprofessorid: int, db: sqlite3.Connection = Depends(get_db)):
+    """API to change the professor for a class.
+    
+    Args:
+        classid: The class ID.
+        newprofessorid: The new professor's ID.
+
+    Returns:
+        A dictionary with a message indicating the professor was successfully updated.
+    """
     instructor_req = requests.get(f"http://localhost:{KRAKEND_PORT}/user/get/{newprofessorid}", headers={"Authorization": request.headers.get("Authorization")})
     instructor_info = instructor_req.json()
 
@@ -799,25 +817,25 @@ def change_prof(request: Request, classid: int, newprofessorid: int, db: sqlite3
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Instructor does not exist",
         )
-
-    check_user(instructor_info["userid"], instructor_info["username"], instructor_info["name"], instructor_info["email"], instructor_info["roles"], db)
-    valid_class_id = check_id_exists_in_table("ClassID",classid,"Classes",db)
-    if not valid_class_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Class does not exist",
-        )
-    
-    try:
-        db.execute("UPDATE InstructorClasses SET InstructorID=? WHERE ClassID=?", (instructor_info["userid"], classid))
-        db.commit()
-    except sqlite3.IntegrityError as e:
+    check_user(instructor_info["userid"], instructor_info["username"], instructor_info["email"])
+    class_item = check_class_exists(classid)
+    if class_item.get('InstructorID') == newprofessorid:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail={"type": type(e).__name__, "msg": str(e)},
+            detail="Instructor already teaches this class",
         )
-
-
+    response = classes_table.update_item(
+        Key={'ClassID': classid},
+        UpdateExpression='SET InstructorID = :instructor_id',
+        ExpressionAttributeValues={':instructor_id': newprofessorid},
+        ReturnValues='UPDATED_NEW'
+    )
+    updated_item = response.get('Attributes')
+    if updated_item:
+        return {"message": f"Instructor updated to user with UserID '{newprofessorid}' successfully"}
+    else:
+        return {"message": f"Failed to update instructor to {newprofessorid}"}
+ 
 
 # Redis examples
 @app.put("/add/{classid}/{studentid}", status_code=status.HTTP_204_NO_CONTENT)
