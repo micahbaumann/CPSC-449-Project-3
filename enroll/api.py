@@ -160,38 +160,41 @@ def add_to_waitlist(class_id: int, student_id: int, redis):
     response_class = classes_table.query(
         KeyConditionExpression=Key('ClassID').eq(class_id)
     )
-    # new_response = retrieve_enrollment_record_id(student_id, class_id)
-    # updated_status = update_enrollment_status(new_response, 'WAITLISTED')
-    # if not updated_status:
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail="Failed to update enrollment status"
-    #     )
-    response = enrollments_table.scan(
-        ProjectionExpression='EnrollmentID',
-        Select='SPECIFIC_ATTRIBUTES',
-    )
-    items = response.get('Items', [])
+    new_response = retrieve_enrollment_record_id(student_id, class_id)
+    if not new_response:
+        # create a new enrollment record
+        response = enrollments_table.scan(
+                ProjectionExpression='EnrollmentID',
+                Select='SPECIFIC_ATTRIBUTES',
+            )
+        items = response.get('Items', [])
 
-    # Find the highest ClassID
-    highest_enrollment_id = 0
-    for item in items:
-        enrollment_id = item.get('EnrollmentID', 0)
+        # Find the highest enrollmentID
+        highest_enrollment_id = 0
+        for item in items:
+            enrollment_id = item.get('EnrollmentID', 0)
+            
+            if enrollment_id > highest_enrollment_id:
+                highest_enrollment_id = enrollment_id
+
+        # Calculate the new ClassID
+        new_enrollment_id = highest_enrollment_id + 1
+
+        enrollment_item = {
+            "EnrollmentID": new_enrollment_id,
+            "StudentID": student_id,
+            "ClassID": class_id,
+            "EnrollmentState": "WAITLISTED"
+        }
+        enrollments_table.put_item(Item=enrollment_item)
         
-        if enrollment_id > highest_enrollment_id:
-            highest_enrollment_id = enrollment_id
-
-    # Calculate the new ClassID
-    new_enrollment_id = highest_enrollment_id + 1
-
-    enrollment_item = {
-        "EnrollmentID": new_enrollment_id,
-        "StudentID": student_id,
-        "ClassID": class_id,
-        "EnrollmentState": "WAITLISTED"
-    }
-    enrollments_table.put_item(Item=enrollment_item)
-
+    else:
+        updated_status = update_enrollment_status(new_response, 'WAITLISTED')
+        if not updated_status:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update enrollment status"
+            )
 
     if redis.llen(f"waitClassID_{class_id}") < response_class["Items"][0]["WaitlistMaximum"]:
         redis.rpush(f"waitClassID_{class_id}", student_id)
@@ -316,8 +319,13 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             status_code=409,
             detail=f"Student with StudentID {studentid} is already on the waitlist for class with ClassID {classid}"
         )
-    
-    elif status is None or status == 'DROPPED':
+    # TODO: either allow or not allow to enroll if dropped 
+    elif status == 'DROPPED':
+        raise HTTPException(
+            status_code=409,
+            detail=f"Student with StudentID {studentid} was dropped from class with ClassID {classid}"
+        )
+    elif status is None:
         if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
             response = enrollments_table.scan(
                 ProjectionExpression='EnrollmentID',
@@ -881,7 +889,7 @@ def change_prof(request: Request, classid: int, newprofessorid: int):
  
 
 # Redis examples
-@app.put("/add/{classid}/{studentid}", status_code=status.HTTP_204_NO_CONTENT)
+@app.put("/add/{classid}/{studentid}")
 def freeze_enrollment(classid: str, studentid: str, db = Depends(get_redis)):
     db.rpush(f"waitClassID_{classid}", studentid)
 
