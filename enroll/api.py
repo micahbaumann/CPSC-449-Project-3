@@ -474,7 +474,7 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
         updated_current_enrollment = update_current_enrollment(classid, increment=False)
         if updated_current_enrollment:
             # TODO: work on the logic for redis 
-            next_on_waitlist = r.lpop(f"waitClassID_{classid}")
+            next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
             if next_on_waitlist:
                 new_status = 'ENROLLED'
                 new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
