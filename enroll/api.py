@@ -36,15 +36,6 @@ def get_redis():
 settings = Settings()
 app = FastAPI()
 
-# TODO: remove this function
-# def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqlite3.Connection = Depends(get_db)) -> bool:
-#     """return true if value found, false if not found"""
-#     vals = db.execute(f"SELECT * FROM {table_name} WHERE {id_name} = ?",(id_val,)).fetchone()
-#     if vals:
-#         return True
-#     else:
-#         return False
-
 
 def check_user(id_val: int, username: str, email: str):
     """check if user exists in Users table, if not, add user"""
@@ -62,38 +53,6 @@ def check_user(id_val: int, username: str, email: str):
         }
         users_table.put_item(Item=user_item)
         return user_item
-    
-    # vals = db.execute(f"SELECT * FROM Users WHERE UserId = ?",(id_val,)).fetchone()
-    # if not vals:
-    #     db.execute("INSERT INTO Users(Userid, Username, FullName, Email) VALUES(?,?,?,?)",(id_val, username, name, email))
-
-    #     if "Student" in roles:
-    #         db.execute("INSERT INTO Students (StudentId) VALUES (?)",(id_val,))
-
-    #     if "Instructor" in roles:
-    #         db.execute("INSERT INTO Instructors (InstructorId) VALUES (?)",(id_val,))
-        
-    #     db.commit()
-
-# TODO: remove this function
-# def check_role(user_id: int):
-#     response = users_table.query(KeyConditionExpression=Key('UserId').eq(user_id))
-#     user_item = response.get('Items')[0] if 'Items' in response else None
-
-#     if not user_item:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"User with UserId {user_id} not found"
-#         )
-    
-#     role = user_item.get('Role')
-#     if role not in ['Registrar', 'Instructor', 'Student']:
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail=f"Invalid role for user with UserId {user_id}"
-#         )
-
-#     return role
 
 
 def check_class_exists(class_id: int):
@@ -171,8 +130,7 @@ def update_current_enrollment(class_id: int, increment: bool = True):
         return updated_item.get('CurrentEnrollment')
     else:
         return None
-   
-    
+
 
 def is_instructor_for_class(instructor_id: int, class_id: int):
         response = classes_table.get_item(Key={"ClassID": class_id})
@@ -327,13 +285,13 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Student with StudentID {studentid} is already enrolled in class with ClassID {classid}"
         )
-   
+
     elif status == 'WAITLISTED':
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Student with StudentID {studentid} is already on the waitlist for class with ClassID {classid}"
         )
-       
+    
     elif status is None or status == 'DROPPED':
         if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
             response = enrollments_table.scan(
@@ -346,7 +304,7 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             highest_enrollment_id = 0
             for item in items:
                 enrollment_id = item.get('EnrollmentID', 0)
-               
+            
                 if enrollment_id > highest_enrollment_id:
                     highest_enrollment_id = enrollment_id
 
@@ -386,22 +344,6 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
 
     # TODO: create function to increment waitlist 
 
-
-    
-    # roles = [word.strip() for word in roles.split(",")]
-    # check_user(studentid, db)
-    
-    # classes = db.execute("SELECT * FROM Classes WHERE ClassID = ?", (classid,)).fetchone()
-    # if not classes:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND,
-    #         detail="Class not found")
-    
-    # enrolled = db.execute("SELECT * FROM Enrollments WHERE ClassID = ? AND StudentID = ? AND EnrollmentStatus='ENROLLED'", (classid, studentid)).fetchone()
-    # if enrolled:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_409_CONFLICT,
-    #         detail="Student already enrolled")
     
     # class_section = classes["SectionNumber"]
     # count = db.execute("SELECT COUNT() FROM Enrollments WHERE ClassID = ?", (classid,)).fetchone()[0]
@@ -479,7 +421,6 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
                 new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
                 new_updated_status = update_enrollment_status(new_response, new_status)
                 updated_current_enrollment = update_current_enrollment(classid, increment=True)
-              
             
             return {
                 "message": "Class dropped updated successfully",
@@ -499,15 +440,6 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
     
 
 
-
-    # dropped_student = db.execute("SELECT StudentID FROM Enrollments WHERE StudentID = ? AND ClassID = ? AND SectionNumber = ?",(studentid,classid,sectionid)).fetchone()
-    # if not dropped_student:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND, 
-    #         detail="Student and class combination not found")
-
-    # query = db.execute("UPDATE Enrollments SET EnrollmentStatus = 'DROPPED' WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
-    # db.commit()
     # Add student to class if there are students in the waitlist for this class
     # next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
     # TODO: add redis according to dynamodb 
@@ -579,9 +511,7 @@ def remove_student_from_waitlist(studentid: int, classid: int, username: str, em
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"Error": "No such student found in the given class on the waitlist"}
             )
-    # db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid))
-    # db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
-    # db.commit()
+        
     return {"Element removed": studentid}
     
 # TODO: test this endpoint and update dynamo
@@ -683,7 +613,7 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Student with StudentID {studentid} is already dropped from class with ClassID {classid}"
         )
-    # retrive record id from dynamo
+    # retrieve record id from dynamo
     response = retrieve_enrollment_record_id(studentid, classid)
     updated_status = update_enrollment_status(response, 'DROPPED')
     if not updated_status:
@@ -807,7 +737,7 @@ def add_class(request: Request, sectionid: int, coursecode: str, classname: str,
     try:
 
         classes_table.put_item(Item=new_class_item)
-        return {"message": f"Class with ClassID {new_class_id} added successfully"}
+        return {"message": f"Class with ClassID {new_class_id} added successfully", "class_details": new_class_item}
     except ClientError as e:
         print(f"Error adding class with ClassID {new_class_id}: {e.response['Error']['Message']}")
         raise HTTPException(
@@ -816,20 +746,6 @@ def add_class(request: Request, sectionid: int, coursecode: str, classname: str,
         )
 
 
-
-    # try:
-    #     db.execute("INSERT INTO Classes (ClassID, SectionNumber, MaximumEnrollment, WaitlistMaximum) VALUES(?, ?, ?, ?)", (classid, sectionid, enrollmax, waitmax))
-    #     db.execute("INSERT INTO InstructorClasses (InstructorID, ClassID, SectionNumber) VALUES(?, ?, ?)", (professorid, classid, sectionid))
-    #     db.commit()
-    # except sqlite3.IntegrityError as e:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail={
-    #             "ErrorType": type(e).__name__, 
-    #             "ErrorMessage": str(e)
-    #         },
-    #     )
-    # return {"New Class Added":f"Course {classid} Section {sectionid}"}
 
 # TODO: endpoint fully working, works in krakend add redis please
 # TODO: probably need to drop wailist for this class in redis

@@ -33,13 +33,6 @@ class Catalog:
             self.table.wait_until_exists()
             print(f"Table {table_name} created successfully.")
         except ClientError as err:
-            # TODO: setup logger
-            # logger.error(
-            #     "Couldn't create table %s. Here's why: %s: %s",
-            #     table_name,
-            #     err.response["Error"]["Code"],
-            #     err.response["Error"]["Message"],
-            # )
             print(
                 "Couldn't create table {}. Here's why: {}: {}".format(
                     table_name,
@@ -107,11 +100,7 @@ users_key_schema = [
 
 users_attribute_definitions = [
     {"AttributeName": "UserId", "AttributeType": "N"},
-    # {"AttributeName": "Username", "AttributeType": "S"},
-    {"AttributeName": "Email", "AttributeType": "S"},
-    # {"AttributeName": "FirstName", "AttributeType": "S"},
-    # {"AttributeName": "LastName", "AttributeType": "S"},
-    # {"AttributeName": "Role", "AttributeType": "S"}
+    {"AttributeName": "Email", "AttributeType": "S"}
 ]
 
 classes_global_secondary_indexes = [
@@ -137,19 +126,13 @@ my_catalog.create_table("Users", users_key_schema, users_attribute_definitions, 
 
 # Define the key schema and attribute definitions for the "Classes" table
 classes_key_schema = [
-    {"AttributeName": "ClassID", "KeyType": "HASH"},
-    # {"AttributeName": "SectionNumber", "KeyType": "RANGE"}
+    {"AttributeName": "ClassID", "KeyType": "HASH"}
 ]
 
 classes_attribute_definitions = [
     {"AttributeName": "ClassID", "AttributeType": "N"},
     {"AttributeName": "CourseCode", "AttributeType": "S"},
     {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    # {"AttributeName": "ClassName", "AttributeType": "S"},
-    # {"AttributeName": "Department", "AttributeType": "S"},
-    # {"AttributeName": "InstructorID", "AttributeType": "N"},
-    # {"AttributeName": "MaxCapacity", "AttributeType": "N"},
-    # either 'active' or 'inactive'
     {"AttributeName": "State", "AttributeType": "S"}
 ]
 
@@ -207,7 +190,6 @@ enrollments_attribute_definitions = [
     {"AttributeName": "EnrollmentID", "AttributeType": "N"},
     {"AttributeName": "StudentID", "AttributeType": "N"},
     {"AttributeName": "ClassID", "AttributeType": "N"},
-    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
     {"AttributeName": "EnrollmentState", "AttributeType": "S"}
 ]
 
