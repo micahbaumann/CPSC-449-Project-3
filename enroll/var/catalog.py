@@ -74,7 +74,7 @@ class Catalog:
         """
         try:
             table = self.dyn_resource.Table(table_name)
-            if table.table_State == 'ACTIVE':
+            if table.table_status == 'ACTIVE':
                 table.delete()
                 table.wait_until_not_exists()
                 print(f"Table {table_name} deleted successfully.")
@@ -143,8 +143,8 @@ classes_key_schema = [
 
 classes_attribute_definitions = [
     {"AttributeName": "ClassID", "AttributeType": "N"},
-    # {"AttributeName": "CourseCode", "AttributeType": "S"},
-    # {"AttributeName": "SectionNumber", "AttributeType": "N"},
+    {"AttributeName": "CourseCode", "AttributeType": "S"},
+    {"AttributeName": "SectionNumber", "AttributeType": "N"},
     # {"AttributeName": "ClassName", "AttributeType": "S"},
     # {"AttributeName": "Department", "AttributeType": "S"},
     # {"AttributeName": "InstructorID", "AttributeType": "N"},
@@ -166,6 +166,30 @@ classes_global_secondary_indexes = [
                 "WriteCapacityUnits": 10,
             },
         },
+        {
+            "IndexName": "SectionNumber-CourseCode-index",
+            "KeySchema": [
+                {"AttributeName": "SectionNumber", "KeyType": "HASH"},
+                {"AttributeName": "CourseCode", "KeyType": "RANGE"},
+            ],
+            "Projection": {"ProjectionType": "ALL"},
+            "ProvisionedThroughput": {
+                "ReadCapacityUnits": 10,
+                "WriteCapacityUnits": 10,
+            },
+        },
+        {
+            "IndexName": "ClassID-index",
+            "KeySchema": [
+                {"AttributeName": "ClassID", "KeyType": "HASH"}
+                
+            ],
+            "Projection": {"ProjectionType": "ALL"},
+            "ProvisionedThroughput": {
+                "ReadCapacityUnits": 10,
+                "WriteCapacityUnits": 10,
+            },
+        },
     ]
 
 # Create the "Classes" table
@@ -176,12 +200,12 @@ my_catalog.create_table("Classes", classes_key_schema, classes_attribute_definit
 # Define the key schema and attribute definitions for the "Enrollments" table
 enrollments_key_schema = [
     {"AttributeName": "EnrollmentID", "KeyType": "HASH"},
-    {"AttributeName": "ClassID", "KeyType": "RANGE"}
+    # {"AttributeName": "ClassID", "KeyType": "RANGE"}
 ]
 
 enrollments_attribute_definitions = [
     {"AttributeName": "EnrollmentID", "AttributeType": "N"},
-    # {"AttributeName": "StudentID", "AttributeType": "N"},
+    {"AttributeName": "StudentID", "AttributeType": "N"},
     {"AttributeName": "ClassID", "AttributeType": "N"},
     # {"AttributeName": "SectionNumber", "AttributeType": "N"},
     {"AttributeName": "EnrollmentState", "AttributeType": "S"}
@@ -192,7 +216,30 @@ enrollments_global_secondary_indexes = [
         "IndexName": "ClassID-EnrollmentState-index",
         "KeySchema": [
                 {"AttributeName": "ClassID", "KeyType": "HASH"},
-                {"AttributeName": "EnrollmentState", "KeyType": "RANGE"},
+                {"AttributeName": "EnrollmentState", "KeyType": "RANGE"}
+        ],
+        "Projection": {"ProjectionType": "ALL"},
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10,
+        },
+    },
+    {
+        "IndexName": "ClassID-index",
+        "KeySchema": [
+                {"AttributeName": "ClassID", "KeyType": "HASH"}
+        ],
+        "Projection": {"ProjectionType": "ALL"},
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10,
+        },
+    },
+    {
+        "IndexName": "StudentID-ClassID-index",
+        "KeySchema": [
+                {"AttributeName": "ClassID", "KeyType": "HASH"},
+                {"AttributeName": "StudentID", "KeyType": "RANGE"},
         ],
         "Projection": {"ProjectionType": "ALL"},
         "ProvisionedThroughput": {
@@ -236,7 +283,7 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 1, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
     {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
     {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
@@ -263,7 +310,6 @@ enrollments_items = [
     {"EnrollmentID": 4, "StudentID": 2, "ClassID": 4, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 5, "StudentID": 2, "ClassID": 5, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 6, "StudentID": 3, "ClassID": 6, "EnrollmentState": "ENROLLED"},
-    {"EnrollmentID": 7, "StudentID": 3, "ClassID": 1, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 8, "StudentID": 3, "ClassID": 2, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentState": "ENROLLED"},
@@ -275,8 +321,9 @@ enrollments_items = [
     # FOR TESTING CLADD ID 2 FOR INSTRUCTOR ID 
     {"EnrollmentID": 15, "StudentID": 1, "ClassID": 2, "EnrollmentState": "ENROLLED"},
     {"EnrollmentID": 16, "StudentID": 4, "ClassID": 2, "EnrollmentState": "ENROLLED"},
-    {"EnrollmentID": 17, "StudentID": 12, "ClassID": 2, "EnrollmentState": "ENROLLED"}
-
+    {"EnrollmentID": 17, "StudentID": 12, "ClassID": 2, "EnrollmentState": "ENROLLED"},
+    # FOR TESTING DROP
+    {"EnrollmentID": 18, "StudentID": 11, "ClassID": 1, "EnrollmentState": "ENROLLED"}
 
 ]
 

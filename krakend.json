@@ -37,12 +37,12 @@
                 }
             },
             {
-                "endpoint": "/student/enroll/{classid}/{sectionid}",
+                "endpoint": "/student/enroll/{classid}",
                 "method": "POST",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/enroll/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/enroll/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "POST",
                     "host": [
                         "http://localhost:5300",
@@ -68,12 +68,12 @@
                 }
             },
             {
-                "endpoint": "/student/remove/{classid}/{sectionid}",
+                "endpoint": "/student/remove/{classid}",
                 "method": "DELETE",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/enrollmentdrop/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/enrollmentdrop/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "DELETE",
                     "host": [
                         "http://localhost:5300",
@@ -104,7 +104,7 @@
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/waitlistdrop/{JWT.jti}/{classid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/waitlistdrop/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "DELETE",
                     "host": [
                         "http://localhost:5300",
@@ -135,7 +135,7 @@
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "GET",
                     "host": [
                         "http://localhost:5300",
@@ -228,7 +228,7 @@
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/drop/{JWT.jti}/{classid}/{studentid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/drop/{JWT.jti}/{classid}/{studentid}/{JWT.sub}/{JWT.email}",
                     "method": "DELETE",
                     "host": [
                         "http://localhost:5300",
@@ -285,12 +285,12 @@
                 }
             },
             {
-                "endpoint": "/registrar/add/{classid}/{sectionid}/{professorid}/{enrollmax}/{waitmax}",
+                "endpoint": "/registrar/add/{sectionid}/{coursecode}/{classname}/{department}/{professorid}/{enrollmax}/{status}/{waitmax}",
                 "method": "POST",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/add/{classid}/{sectionid}/{professorid}/{enrollmax}/{waitmax}",
+                    "url_pattern": "/add/{sectionid}/{coursecode}/{classname}/{department}/{professorid}/{enrollmax}/{status}/{waitmax}",
                     "method": "POST",
                     "host": [
                         "http://localhost:5300",
@@ -319,12 +319,12 @@
                 ]
             },
             {
-                "endpoint": "/registrar/remove/{classid}/{sectionid}",
+                "endpoint": "/registrar/remove/{classid}",
                 "method": "DELETE",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/remove/{classid}/{sectionid}",
+                    "url_pattern": "/remove/{classid}",
                     "method": "DELETE",
                     "host": [
                         "http://localhost:5300",
