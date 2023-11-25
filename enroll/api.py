@@ -341,6 +341,11 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
                     status_code=500,
                     detail="Failed to update current enrollment"
                 )
+        else:
+            if add_to_waitlist(classid, studentid, r):
+                return {
+                    "message": "Student added to waitlist",
+                }
             
     elif status is None:
         if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
