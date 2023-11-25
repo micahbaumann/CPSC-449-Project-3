@@ -45,38 +45,54 @@ def check_id_exists_in_table(id_name: str,id_val: int, table_name: str, db: sqli
         return False
 
 
-def check_user(id_val: int, username: str, name: str, email: str, roles: list, db: sqlite3.Connection = Depends(get_db)):
-    vals = db.execute(f"SELECT * FROM Users WHERE UserId = ?",(id_val,)).fetchone()
-    if not vals:
-        db.execute("INSERT INTO Users(Userid, Username, FullName, Email) VALUES(?,?,?,?)",(id_val, username, name, email))
+def check_user(id_val: int, username: str, email: str):
+    """check if user exists in Users table, if not, add user"""
+    response = users_table.query(KeyConditionExpression=Key('UserId').eq(id_val))
+    items = response.get('Items', [])
 
-        if "Student" in roles:
-            db.execute("INSERT INTO Students (StudentId) VALUES (?)",(id_val,))
-
-        if "Instructor" in roles:
-            db.execute("INSERT INTO Instructors (InstructorId) VALUES (?)",(id_val,))
-        
-        db.commit()
-
-
-def check_role(user_id: int):
-    response = users_table.query(KeyConditionExpression=Key('UserId').eq(user_id))
-    user_item = response.get('Items')[0] if 'Items' in response else None
-
-    if not user_item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with UserId {user_id} not found"
-        )
+    if items:
+        user_item = items[0]
+        return user_item
+    else:
+        user_item = {
+            "UserId": id_val,
+            "Username": username,
+            "Email": email
+        }
+        users_table.put_item(Item=user_item)
+        return user_item
     
-    role = user_item.get('Role')
-    if role not in ['Registrar', 'Instructor', 'Student']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Invalid role for user with UserId {user_id}"
-        )
+    # vals = db.execute(f"SELECT * FROM Users WHERE UserId = ?",(id_val,)).fetchone()
+    # if not vals:
+    #     db.execute("INSERT INTO Users(Userid, Username, FullName, Email) VALUES(?,?,?,?)",(id_val, username, name, email))
 
-    return role
+    #     if "Student" in roles:
+    #         db.execute("INSERT INTO Students (StudentId) VALUES (?)",(id_val,))
+
+    #     if "Instructor" in roles:
+    #         db.execute("INSERT INTO Instructors (InstructorId) VALUES (?)",(id_val,))
+        
+    #     db.commit()
+
+# TODO: remove this function
+# def check_role(user_id: int):
+#     response = users_table.query(KeyConditionExpression=Key('UserId').eq(user_id))
+#     user_item = response.get('Items')[0] if 'Items' in response else None
+
+#     if not user_item:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail=f"User with UserId {user_id} not found"
+#         )
+    
+#     role = user_item.get('Role')
+#     if role not in ['Registrar', 'Instructor', 'Student']:
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail=f"Invalid role for user with UserId {user_id}"
+#         )
+
+#     return role
 
 
 def check_class_exists(class_id: int):
@@ -228,16 +244,7 @@ def list_open_classes(db: sqlite3.Connection = Depends(get_db), r = Depends(get_
             classList["Classes"].append(aClass)
 
     return classList
-    # return {"Classes": items}
-    # if (db.execute("SELECT IsFrozen FROM Freeze").fetchone()[0] == 1):
-    #     return {"Classes": []}
 
-    # classes = db.execute("SELECT * FROM Classes")
-    # classes = db.execute(
-    #     "SELECT * FROM Classes WHERE \
-    #         Classes.MaximumEnrollment > (SELECT COUNT(EnrollmentID) FROM Enrollments WHERE Enrollments.ClassID = Classes.ClassID) \
-    #         OR Classes.WaitlistMaximum > (SELECT COUNT(WaitlistID) FROM Waitlists WHERE Waitlists.ClassID = Classes.ClassID)"
-    # )
 
 # TODO: test dynamo and redis
 @app.post("/enroll/{studentid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}", status_code=status.HTTP_201_CREATED)
@@ -555,9 +562,9 @@ def view_waitlist_position(studentid: int, classid: int, name: str, username: st
     return {message: position}
     
 ### Instructor related endpoints
-# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS
-@app.get("/enrolled/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
-def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str):
+# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, works in krakend
+@app.get("/enrolled/{instructorid}/{classid}/{username}/{email}")
+def view_enrolled(instructorid: int, classid: int, username: str, email: str):
     """API to view all students enrolled in a class.
     
     Args:
@@ -567,15 +574,7 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     Returns:
         A dictionary with a list of students enrolled in the instructor's classes.
     """
-    # roles = [word.strip() for word in roles.split(",")]
-    # check_user(instructorid, username, name, email, roles, db)
-
-    # role = check_role(instructorid)
-    # if role != 'Instructor':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail=f"User with UserId {instructorid} is not an instructor"
-    #     )
+    check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -585,26 +584,11 @@ def view_enrolled(instructorid: int, classid: int, sectionid: int, name: str, us
     if not enrolled_students:
         raise HTTPException(status_code=404, detail="No enrolled students found for this class.")
     return {"Enrolled Students": enrolled_students}
-    
-    
-    # instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
-    # if not instructor_class:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
-    #     )
 
-    # enrolled_students = db.execute("SELECT StudentID FROM Enrollments WHERE classID=? AND SectionNumber=? AND EnrollmentStatus='ENROLLED'",(classid,sectionid))
-    # enrolled = enrolled_students.fetchall()
-    # if enrolled:
-    #     return {"All students enrolled in this instructor's classes" : enrolled}
-    # else:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_204_NO_CONTENT
-    #     )
 
-# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, errors working as well
-@app.get("/dropped/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
-def view_dropped_students(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str):
+# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, errors working as well, works in krakend
+@app.get("/dropped/{instructorid}/{classid}/{username}/{email}")
+def view_dropped_students(instructorid: int, classid: int, username: str, email: str):
     """API to view all students dropped from a class.
     
     Args:
@@ -613,35 +597,17 @@ def view_dropped_students(instructorid: int, classid: int, sectionid: int, name:
     Returns:
         A dictionary with a list of students dropped from the instructor's classes.
     """
-    # roles = [word.strip() for word in roles.split(",")]
-    # check_user(instructorid, username, name, email, roles, db)
-    # instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
-    # if not instructor_class:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
-    #     )
-    
-    # query = "SELECT StudentID FROM Enrollments WHERE ClassID = ? AND SectionNumber = ? AND EnrollmentStatus = 'DROPPED'"
-    # dropped_students = db.execute(query, (classid, sectionid)).fetchall()
-    # if not dropped_students:
-    #     raise HTTPException(status_code=404, detail="No dropped students found for this class.")
-    # return {"Dropped Students ID": [student["StudentID"] for student in dropped_students]}
-    # role = check_role(instructorid)
-    # if role != 'Instructor':
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail=f"User with UserId {instructorid} is not an instructor"
-    #     )
+    check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     
-    enrolled_students = get_students_for_class(classid, 'DROPPED')
-    if not enrolled_students:
+    dropped_students = get_students_for_class(classid, 'DROPPED')
+    if not dropped_students:
         raise HTTPException(status_code=404, detail="No dropped students found for this class.")
-    return {"Enrolled Students": enrolled_students}
+    return {"Dropped Students": dropped_students}
 
 # TODO: Test, add dynamo, add redis
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{name}/{username}/{email}/{roles}")
@@ -694,9 +660,9 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
             )
     return {"message": f"Student {studentid} has been administratively dropped from class {classid}"}
 
-# TODO: Test, add dynamo, add redis
-@app.get("/waitlist/{instructorid}/{classid}/{sectionid}/{name}/{username}/{email}/{roles}")
-def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, username: str, email: str, roles: str, db: sqlite3.Connection = Depends(get_db), redis = Depends(get_redis)):
+# TODO: Need to test with redis
+@app.get("/waitlist/{instructorid}/{classid}/{username}/{email}")
+def view_waitlist(instructorid: int, classid: int, username: str, email: str, redis = Depends(get_redis)):
     """API to view the waitlist for a class.
     
     Args:
@@ -705,13 +671,16 @@ def view_waitlist(instructorid: int, classid: int, sectionid: int, name: str, us
     Returns:
         A dictionary with a list of students on the waitlist for the instructor's classes.
     """
-    roles = [word.strip() for word in roles.split(",")]
-    check_user(instructorid, username, name, email, roles, db)
-    instructor_class = db.execute("SELECT * FROM InstructorClasses WHERE classID=? AND SectionNumber=?",(classid,sectionid)).fetchone()
-    if not instructor_class:
+    check_user(instructorid, username, email)
+    if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Instructor does not have this class"
-        )
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
+        )    
+    # TODO: might need to delete this if redundant
+    waitlisted_students = get_students_for_class(classid, 'WAITLISTED')
+    if not waitlisted_students:
+        raise HTTPException(status_code=404, detail="No waitlisted students found for this class.")    
 
     student_ids = redis.lrange(f"waitClassID_{classid}", 0, -1)
     if not len(student_ids):
