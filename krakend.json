@@ -259,7 +259,7 @@
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
+                    "url_pattern": "/instructorwaitlist/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "GET",
                     "host": [
                         "http://localhost:5300",

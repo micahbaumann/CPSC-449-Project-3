@@ -62,7 +62,7 @@ def check_class_exists(class_id: int):
 
     if not class_items:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=f"Class with ClassID {class_id} not found"
         )
     return class_items[0]
@@ -258,7 +258,7 @@ def add_to_waitlist(class_id: int, student_id: int, redis):
         return True
     else:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Class and Waitlist with ClassID {class_id} are full"
         )
     
@@ -586,14 +586,14 @@ def view_waitlist_position(studentid: int, classid: int, username: str, email: s
         A dictionary with a message indicating the student's position on the waitlist.
     """
     check_user(studentid, username, email)
-    position = redis.lpos(f"waitClassID_{classid}", studentid)
+    position = r.lpos(f"waitClassID_{classid}", studentid)
     
     if position:
         message = f"Student {studentid} is on the waitlist for class {classid} in position"
     else:
         message = f"Student {studentid} is not on the waitlist for class {classid}"
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=message,
         )
     return {message: position}
@@ -614,7 +614,7 @@ def view_enrolled(instructorid: int, classid: int, username: str, email: str):
     check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     enrolled_students = get_students_for_class(classid, 'ENROLLED')
@@ -637,7 +637,7 @@ def view_dropped_students(instructorid: int, classid: int, username: str, email:
     check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     
@@ -649,7 +649,7 @@ def view_dropped_students(instructorid: int, classid: int, username: str, email:
 # TODO: endpoint fully working, works in krakend
 # TODO: add redis to add next on waitlist to class
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{username}/{email}")
-def drop_student_administratively(instructorid: int, classid: int, studentid: int, username: str, email: str, redis = Depends(get_redis)):
+def drop_student_administratively(instructorid: int, classid: int, studentid: int, username: str, email: str, r = Depends(get_redis)):
     """API to drop a student from a class.
     
     Args:
@@ -663,13 +663,13 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
     check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )
     status = get_enrollment_status(studentid, classid)
     if status == 'DROPPED':
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail=f"Student with StudentID {studentid} is already dropped from class with ClassID {classid}"
         )
     # retrieve record id from dynamo
@@ -677,24 +677,37 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
     updated_status = update_enrollment_status(response, 'DROPPED')
     if not updated_status:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to update enrollment status"
         )
     # Decrement the CurrentEnrollment for the class
     updated_current_enrollment = update_current_enrollment(classid, increment=False)
     if updated_current_enrollment is None:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to update current enrollment"
         )
     # Add student to class if there are students in the waitlist for this class
     # TODO: add redis here
+    next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
+    if next_on_waitlist:
+        new_status = 'ENROLLED'
+        new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
+        new_updated_status = update_enrollment_status(new_response, new_status)
+        updated_current_enrollment = update_current_enrollment(classid, increment=True)
+    
+    # return {
+    #     "message": "Class dropped updated successfully",
+    #     "updated_status": updated_status,
+    #     "new_student": new_updated_status,
+    #     "updated_current_enrollment": updated_current_enrollment
+    # }
     return {"message": f"Student {studentid} has been administratively dropped from class {classid} by instructor {instructorid}"}
 
 
 # TODO: Need to test with redis
-@app.get("/waitlist/{instructorid}/{classid}/{username}/{email}")
-def view_waitlist(instructorid: int, classid: int, username: str, email: str, redis = Depends(get_redis)):
+@app.get("/instructorwaitlist/{instructorid}/{classid}/{username}/{email}")
+def view_waitlist(instructorid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to view the waitlist for a class.
     
     Args:
@@ -706,7 +719,7 @@ def view_waitlist(instructorid: int, classid: int, username: str, email: str, re
     check_user(instructorid, username, email)
     if not is_instructor_for_class(instructorid, classid):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=403,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
         )    
     # TODO: might need to delete this if redundant
@@ -714,9 +727,9 @@ def view_waitlist(instructorid: int, classid: int, username: str, email: str, re
     if not waitlisted_students:
         raise HTTPException(status_code=404, detail="No waitlisted students found for this class.")    
 
-    student_ids = redis.lrange(f"waitClassID_{classid}", 0, -1)
+    student_ids = r.lrange(f"waitClassID_{classid}", 0, -1)
     if not len(student_ids):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No students found in the waitlist for this class")
+        raise HTTPException(status_code=404, detail="No students found in the waitlist for this class")
     return {"Waitlist": [{"student_id": int(student)} for student in student_ids]}
 
 ### Registrar related endpoints
@@ -744,7 +757,7 @@ def add_class(request: Request, sectionid: int, coursecode: str, classname: str,
 
     if instructor_req.status_code != 200:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Instructor does not exist",
         )
     check_user(instructor_info["userid"], instructor_info["username"], instructor_info["email"])
@@ -800,7 +813,7 @@ def add_class(request: Request, sectionid: int, coursecode: str, classname: str,
     except ClientError as e:
         print(f"Error adding class with ClassID {new_class_id}: {e.response['Error']['Message']}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail="Failed to add class"
         )
 
@@ -827,7 +840,7 @@ def remove_class(classid: int):
         dropped_students = drop_students_from_class(classid)
         if not dropped_students:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=500,
                 detail=f"Failed to drop students from class {classid}"
             )
     response = classes_table.delete_item(Key={'ClassID': classid})
@@ -887,14 +900,14 @@ def change_prof(request: Request, classid: int, newprofessorid: int):
 
     if instructor_req.status_code != 200:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail="Instructor does not exist",
         )
     check_user(instructor_info["userid"], instructor_info["username"], instructor_info["email"])
     class_item = check_class_exists(classid)
     if class_item.get('InstructorID') == newprofessorid:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=409,
             detail="Instructor already teaches this class",
         )
     response = classes_table.update_item(
