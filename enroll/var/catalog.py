@@ -74,7 +74,7 @@ class Catalog:
         """
         try:
             table = self.dyn_resource.Table(table_name)
-            if table.table_status == 'ACTIVE':
+            if table.table_State == 'ACTIVE':
                 table.delete()
                 table.wait_until_not_exists()
                 print(f"Table {table_name} deleted successfully.")
@@ -184,15 +184,15 @@ enrollments_attribute_definitions = [
     # {"AttributeName": "StudentID", "AttributeType": "N"},
     {"AttributeName": "ClassID", "AttributeType": "N"},
     # {"AttributeName": "SectionNumber", "AttributeType": "N"},
-    {"AttributeName": "EnrollmentStatus", "AttributeType": "S"}
+    {"AttributeName": "EnrollmentState", "AttributeType": "S"}
 ]
 
 enrollments_global_secondary_indexes = [ 
     {
-        "IndexName": "ClassID-EnrollmentStatus-index",
+        "IndexName": "ClassID-EnrollmentState-index",
         "KeySchema": [
                 {"AttributeName": "ClassID", "KeyType": "HASH"},
-                {"AttributeName": "EnrollmentStatus", "KeyType": "RANGE"},
+                {"AttributeName": "EnrollmentState", "KeyType": "RANGE"},
         ],
         "Projection": {"ProjectionType": "ALL"},
         "ProvisionedThroughput": {
@@ -240,7 +240,7 @@ classes_items = [
     {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
     {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
     {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 11, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
     {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 11, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
@@ -257,25 +257,25 @@ my_catalog.put_items("Classes", classes_items)
 
 # Populate the "Enrollments" table
 enrollments_items = [
-    {"EnrollmentID": 1, "StudentID": 2, "ClassID": 1, "EnrollmentStatus": "DROPPED"},
-    {"EnrollmentID": 2, "StudentID": 2, "ClassID": 2, "EnrollmentStatus": "WAITLISTED"},
-    {"EnrollmentID": 3, "StudentID": 2, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 4, "StudentID": 2, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 5, "StudentID": 2, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 6, "StudentID": 3, "ClassID": 6, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 7, "StudentID": 3, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 8, "StudentID": 3, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 11, "StudentID": 4, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 1, "StudentID": 2, "ClassID": 1, "EnrollmentState": "DROPPED"},
+    {"EnrollmentID": 2, "StudentID": 2, "ClassID": 2, "EnrollmentState": "WAITLISTED"},
+    {"EnrollmentID": 3, "StudentID": 2, "ClassID": 3, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 4, "StudentID": 2, "ClassID": 4, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 5, "StudentID": 2, "ClassID": 5, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 6, "StudentID": 3, "ClassID": 6, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 7, "StudentID": 3, "ClassID": 1, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 8, "StudentID": 3, "ClassID": 2, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 11, "StudentID": 4, "ClassID": 5, "EnrollmentState": "ENROLLED"},
     # ENROLLMENTS FOR TESTING CLASS ID 1 FOR INSTRUCTOR ID 11
-    {"EnrollmentID": 12, "StudentID": 1, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 13, "StudentID": 3, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 14, "StudentID": 4, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 12, "StudentID": 1, "ClassID": 1, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 13, "StudentID": 3, "ClassID": 1, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 14, "StudentID": 4, "ClassID": 1, "EnrollmentState": "ENROLLED"},
     # FOR TESTING CLADD ID 2 FOR INSTRUCTOR ID 
-    {"EnrollmentID": 15, "StudentID": 1, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 16, "StudentID": 4, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 17, "StudentID": 12, "ClassID": 2, "EnrollmentStatus": "ENROLLED"}
+    {"EnrollmentID": 15, "StudentID": 1, "ClassID": 2, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 16, "StudentID": 4, "ClassID": 2, "EnrollmentState": "ENROLLED"},
+    {"EnrollmentID": 17, "StudentID": 12, "ClassID": 2, "EnrollmentState": "ENROLLED"}
 
 
 ]

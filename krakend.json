@@ -350,12 +350,12 @@
                 }
             },
             {
-                "endpoint": "/registrar/freeze/{isfrozen}",
+                "endpoint": "/registrar/state/{classid}/{state}",
                 "method": "PUT",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/freeze/{isfrozen}",
+                    "url_pattern": "/state/{classid}/{state}",
                     "method": "PUT",
                     "host": [
                         "http://localhost:5300",
