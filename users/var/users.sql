@@ -25,7 +25,8 @@ INSERT INTO Registrations(UserId, Username, FullName, Email, UserPassword) VALUE
 (8, "earl",  "Earl Poppins", "epoppins@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ="),
 (9, "sarah",  "Sarah Colyt", "fsmith@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ="),
 (10, "anna", "Anna Kant", "akant@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ="),
-(11, "micah", "Micah Baumann", "mbaumann@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ=");
+(11, "micah", "Micah Baumann", "mbaumann@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ="),
+(12, "edwin", "Edwin Peraza", "edwinperaza@csu.fullerton.edu", "pbkdf2_sha256$600000$c9fc625a0e406cec90594958016ac631$5iDVmwSTF6K9K110LWBxH/xi0ZvwpgKt3y8gAMz0GzQ=");
 
 CREATE TABLE Roles (
     RoleId INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -56,6 +57,9 @@ INSERT INTO UserRoles(RoleId, UserId) VALUES
 (3, 10),
 (1, 11),
 (2, 11),
-(3, 11);
+(3, 11),
+(1, 12),
+(2, 12),
+(3, 12);
 
 COMMIT;

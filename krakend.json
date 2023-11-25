@@ -161,12 +161,12 @@
                 }
             },
             {
-                "endpoint": "/instructor/enrolled/{classid}/{sectionid}",
+                "endpoint": "/instructor/enrolled/{classid}",
                 "method": "GET",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/enrolled/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/enrolled/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "GET",
                     "host": [
                         "http://localhost:5300",
@@ -192,12 +192,12 @@
                 }
             },
             {
-                "endpoint": "/instructor/dropped/{classid}/{sectionid}",
+                "endpoint": "/instructor/dropped/{classid}",
                 "method": "GET",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/dropped/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/dropped/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "GET",
                     "host": [
                         "http://localhost:5300",
@@ -254,12 +254,12 @@
                 }
             },
             {
-                "endpoint": "/instructor/waitlist/{classid}/{sectionid}",
+                "endpoint": "/instructor/waitlist/{classid}",
                 "method": "GET",
                 "output_encoding": "no-op",
                 "backend": [
                 {
-                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{sectionid}/{JWT.name}/{JWT.sub}/{JWT.email}/{JWT.roles}",
+                    "url_pattern": "/waitlist/{JWT.jti}/{classid}/{JWT.sub}/{JWT.email}",
                     "method": "GET",
                     "host": [
                         "http://localhost:5300",

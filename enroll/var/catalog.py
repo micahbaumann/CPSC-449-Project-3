@@ -108,17 +108,17 @@ users_key_schema = [
 users_attribute_definitions = [
     {"AttributeName": "UserId", "AttributeType": "N"},
     # {"AttributeName": "Username", "AttributeType": "S"},
-    # {"AttributeName": "Email", "AttributeType": "S"},
+    {"AttributeName": "Email", "AttributeType": "S"},
     # {"AttributeName": "FirstName", "AttributeType": "S"},
     # {"AttributeName": "LastName", "AttributeType": "S"},
-    {"AttributeName": "Role", "AttributeType": "S"}
+    # {"AttributeName": "Role", "AttributeType": "S"}
 ]
 
 classes_global_secondary_indexes = [
         {
-            "IndexName": "Role-index",
+            "IndexName": "Email-index",
             "KeySchema": [
-                {"AttributeName": "Role", "KeyType": "HASH"},
+                {"AttributeName": "Email", "KeyType": "HASH"},
                 {"AttributeName": "UserId", "KeyType": "RANGE"},
             ],
             "Projection": {"ProjectionType": "ALL"},
@@ -213,21 +213,22 @@ my_catalog.create_table("Enrollments", enrollments_key_schema, enrollments_attri
 
 # Populate the "Users" table
 users_items = [
-    # registrar has UserId 1
-    {"UserId": 1, "Username": "registrar", "Email": "registrar@example.com", "FirstName": "Registrar", "LastName": "Registrar", "Role": "Registrar"},
-    # 5 student with UserId 2-6
-    {"UserId": 2, "Username": "edwinperaza", "Email": "edwinperaza@example.com", "FirstName": "Edwin", "LastName": "Peraza", "Role": "Student"},
-    {"UserId": 2, "Username": "johndoe", "Email": "johndoe@example.com", "FirstName": "John", "LastName": "Doe", "Role": "Student"},
-    {"UserId": 3, "Username": "alicesmith", "Email": "alicesmith@example.com", "FirstName": "Alice", "LastName": "Smith", "Role": "Student"},
-    {"UserId": 4, "Username": "bobjohnson", "Email": "bobjohnson@example.com", "FirstName": "Bob", "LastName": "Johnson", "Role": "Student"},
-    {"UserId": 5, "Username": "evawilliams", "Email": "evawilliams@example.com", "FirstName": "Eva", "LastName": "Williams", "Role": "Student"},
-    {"UserId": 6, "Username": "chrisbrown", "Email": "chrisbrown@example.com", "FirstName": "Chris", "LastName": "Brown", "Role": "Student"},
-    # 5 instructor with UserId 7-11
-    {"UserId": 7, "Username": "professoranderson", "Email": "professoranderson@example.com", "FirstName": "Professor", "LastName": "Anderson", "Role": "Instructor"},
-    {"UserId": 8, "Username": "drclark", "Email": "drclark@example.com", "FirstName": "Dr.", "LastName": "Clark", "Role": "Instructor"},
-    {"UserId": 9, "Username": "msjohnson", "Email": "msjohnson@example.com", "FirstName": "Ms.", "LastName": "Johnson", "Role": "Instructor"},
-    {"UserId": 10, "Username": "janesmith", "Email": "janesmith@example.com", "FirstName": "Jane", "LastName": "Smith", "Role": "Instructor"},
-    {"UserId": 11, "Username": "professorbrown", "Email": "professorbrown@example.com", "FirstName": "Professor", "LastName": "Brown", "Role": "Instructor"},
+    # User ID 1-4 are students
+    {"UserId": 1, "Username": "fara", "Email": "fsmith@csu.fullerton.edu"},
+    {"UserId": 2, "Username": "steve", "Email": "sjobs@csu.fullerton.edu"},
+    {"UserId": 3, "Username": "andy", "Email": "ajones@csu.fullerton.edu"},
+    {"UserId": 4, "Username": "tim", "Email": "traft@csu.fullerton.edu"},
+    # User ID 5-7 are instructors
+    {"UserId": 5, "Username": "elizabeth", "Email": "ebarnes@csu.fullerton.edu"},
+    {"UserId": 6, "Username": "george", "Email": "gderns@csu.fullerton.edu"},
+    {"UserId": 7, "Username": "pheobe", "Email": "pessek@fsmithcsu.fullerton.edu"},
+    # User ID 8-10 are registrars
+    {"UserId": 8, "Username": "earl", "Email": "epoppins@csu.fullerton.edu"},
+    {"UserId": 9, "Username": "sarah", "Email": "fsmith@csu.fullerton.edu"},
+    {"UserId": 10, "Username": "anna", "Email": "akant@csu.fullerton.edu"},
+    # All roles
+    {"UserId": 11, "Username": "micah", "Email": "mbaumann@csu.fullerton.edu"},
+    {"UserId": 12, "Username": "edwin", "Email": "edwinperaza@csu.fullerton.edu"},
 ]
 
 my_catalog.put_items("Users", users_items)
@@ -235,20 +236,20 @@ my_catalog.put_items("Users", users_items)
 
 # Populate the "Classes" table
 classes_items = [
-    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 2, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 1, "SectionNumber": 1, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 2, "SectionNumber": 2, "CourseCode": "CS-101", "ClassName": "Introduction to Computer Science", "Department": "Computer Science", "InstructorID": 11, "MaxCapacity": 50, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 3, "MaxCapacity": 30, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 3, "SectionNumber": 1, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 4, "SectionNumber": 2, "CourseCode": "ENG-101", "ClassName": "English 101", "Department": "English", "InstructorID": 11, "MaxCapacity": 30, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 4, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 5, "SectionNumber": 1, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 11, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 6, "SectionNumber": 2, "CourseCode": "MATH-101", "ClassName": "Mathematics 101", "Department": "Mathematics", "InstructorID": 11, "MaxCapacity": 40, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 7, "SectionNumber": 1, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 8, "SectionNumber": 2, "CourseCode": "PHYS-101", "ClassName": "Physics 101", "Department": "Physics", "InstructorID": 5, "MaxCapacity": 35, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
     
-    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "inactive", "WaitlistMaximum": 30},
-    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWailist": 0, "State": "active", "WaitlistMaximum": 30},
+    {"ClassID": 9, "SectionNumber": 1, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "inactive", "WaitlistMaximum": 30},
+    {"ClassID": 10, "SectionNumber": 2, "CourseCode": "CHEM-101", "ClassName": "Chemistry 101", "Department": "Chemistry", "InstructorID": 6, "MaxCapacity": 45, "CurrentEnrollment": 0, "CurrentWaitlist": 0, "State": "active", "WaitlistMaximum": 30},
 ]
 
 my_catalog.put_items("Classes", classes_items)
@@ -267,14 +268,14 @@ enrollments_items = [
     {"EnrollmentID": 9, "StudentID": 3, "ClassID": 3, "EnrollmentStatus": "ENROLLED"},
     {"EnrollmentID": 10, "StudentID": 3, "ClassID": 4, "EnrollmentStatus": "ENROLLED"},
     {"EnrollmentID": 11, "StudentID": 4, "ClassID": 5, "EnrollmentStatus": "ENROLLED"},
-    # ENROLLMENTS FOR TESTING CLASS ID 1 FOR INSTRUCTOR ID 7
-    {"EnrollmentID": 12, "StudentID": 4, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 13, "StudentID": 5, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 14, "StudentID": 6, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
-    # FOR TESTING CLADD ID 2 FOR INSTRUCTOR ID 7
-    {"EnrollmentID": 15, "StudentID": 4, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 16, "StudentID": 5, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
-    {"EnrollmentID": 17, "StudentID": 6, "ClassID": 2, "EnrollmentStatus": "ENROLLED"}
+    # ENROLLMENTS FOR TESTING CLASS ID 1 FOR INSTRUCTOR ID 11
+    {"EnrollmentID": 12, "StudentID": 1, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 13, "StudentID": 3, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 14, "StudentID": 4, "ClassID": 1, "EnrollmentStatus": "ENROLLED"},
+    # FOR TESTING CLADD ID 2 FOR INSTRUCTOR ID 
+    {"EnrollmentID": 15, "StudentID": 1, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 16, "StudentID": 4, "ClassID": 2, "EnrollmentStatus": "ENROLLED"},
+    {"EnrollmentID": 17, "StudentID": 12, "ClassID": 2, "EnrollmentStatus": "ENROLLED"}
 
 
 ]
