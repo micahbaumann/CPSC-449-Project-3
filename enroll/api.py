@@ -213,7 +213,7 @@ def retrieve_enrollment_record_id(student_id: int, class_id: int):
         return None
 
 
-def add_to_waitlist(class_id: int, student_id: int, redis):
+def add_to_waitlist(class_id: int, student_id: int, r):
     response_class = classes_table.query(
         KeyConditionExpression=Key('ClassID').eq(class_id)
     )
@@ -253,8 +253,8 @@ def add_to_waitlist(class_id: int, student_id: int, redis):
                 detail="Failed to update enrollment status"
             )
 
-    if redis.llen(f"waitClassID_{class_id}") < response_class["Items"][0]["WaitlistMaximum"]:
-        redis.rpush(f"waitClassID_{class_id}", student_id)
+    if r.llen(f"waitClassID_{class_id}") < response_class["Items"][0]["WaitlistMaximum"]:
+        r.rpush(f"waitClassID_{class_id}", student_id)
         return True
     else:
         raise HTTPException(
