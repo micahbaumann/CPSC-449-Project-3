@@ -95,12 +95,12 @@ Downloading Postman is optional, however it was used to test our endpoints, as s
 
 Example credentials:
 
-'''
+```
 {
     "username": "micah",
     "password": "12345"
 }
-'''
+```
 
 This credentials include the roles instructor, registrar, and student making it
 simple to test all endpoints with just one bearer.
