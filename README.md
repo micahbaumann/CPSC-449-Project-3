@@ -66,21 +66,6 @@ Ensure Redis Server is running on your system:
 redis-server
 ```
 
-- Start DynamoDB Local:
-
-Navigate to the directory where DynamoDB Local is extracted.
-Start DynamoDB Local with the command:
-
-```
-java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb
-```
-
-## Verifying the Setup
-- Verify DynamoDB Local is running correctly by listing tables using the AWS CLI:
-
-```
-aws dynamodb list-tables --endpoint-url http://localhost:8000
-```
 
 ### Quick Start Guide - Running API
 
