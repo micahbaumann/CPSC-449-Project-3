@@ -430,8 +430,10 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
         # Decrement the CurrentEnrollment for the class
         updated_current_enrollment = update_current_enrollment(classid, increment=False)
         if updated_current_enrollment:
-            next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
-            if next_on_waitlist:
+            next_on_waitlist = r.lpop(f"waitClassID_{classid}")
+            if next_on_waitlist is not None:
+                # Convert the retrieved string to an integer
+                next_on_waitlist = int(next_on_waitlist)
                 new_status = 'ENROLLED'
                 new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
                 new_updated_status = update_enrollment_status(new_response, new_status)
@@ -609,9 +611,14 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
             status_code=500,
             detail="Failed to update current enrollment"
         )
-    # Add student to class if there are students in the waitlist for this class
-    next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
-    if next_on_waitlist:
+    # Retrieve the next student ID from the waitlist
+    next_on_waitlist_str = r.lpop(f"waitClassID_{classid}")
+
+    if next_on_waitlist_str is not None:
+        # Convert the retrieved string to an integer
+        next_on_waitlist = int(next_on_waitlist_str)
+
+        # The rest of your code for processing the waitlisted student
         new_status = 'ENROLLED'
         new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
         new_updated_status = update_enrollment_status(new_response, new_status)
