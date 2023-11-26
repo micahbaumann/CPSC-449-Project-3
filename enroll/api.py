@@ -1,4 +1,3 @@
-import sqlite3
 import contextlib
 import requests
 import redis
@@ -22,11 +21,6 @@ enrollments_table = dynamo_db.Table('Enrollments')
 class Settings(BaseSettings, env_file="enroll/.env", extra="ignore"):
     database: str
     logging_config: str
-
-def get_db():
-    with contextlib.closing(sqlite3.connect(settings.database)) as db:
-        db.row_factory = sqlite3.Row
-        yield db
 
 def get_redis():
     yield redis.Redis()
@@ -264,7 +258,6 @@ def add_to_waitlist(class_id: int, student_id: int, r):
     
 
 ### Student related endpoints
-# TODO: endpoint working, returns all information for a class
 @app.get("/list")
 def list_open_classes(r = Depends(get_redis)):
     """API to fetch list of available classes in catalog.
@@ -289,8 +282,6 @@ def list_open_classes(r = Depends(get_redis)):
     return classList
 
 
-# TODO: endpoint fully working with krakend
-# TODO: test redis 
 @app.post("/enroll/{studentid}/{classid}/{username}/{email}")
 def enroll_student_in_class(studentid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to enroll a student in a class.
@@ -303,7 +294,6 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
         A dictionary with a message indicating the student's enrollment status.
     """
     check_user(studentid, username, email)
-    # TODO: use class_item for waitlist 
     class_item = check_class_exists(classid)
     if class_item.get('State') != 'active':
         raise HTTPException(
@@ -322,7 +312,6 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             status_code=409,
             detail=f"Student with StudentID {studentid} is already on the waitlist for class with ClassID {classid}"
         )
-    # TODO: either allow or not allow to enroll if dropped 
     elif status == 'DROPPED':
         if class_item.get('CurrentEnrollment') < class_item.get('MaxCapacity'):
             response = retrieve_enrollment_record_id(studentid, classid)
@@ -401,39 +390,7 @@ def enroll_student_in_class(studentid: int, classid: int, username: str, email: 
             detail="Failed to update current enrollment"
         )
 
-    # TODO: create function to increment waitlist 
 
-    
-    # class_section = classes["SectionNumber"]
-    # count = db.execute("SELECT COUNT() FROM Enrollments WHERE ClassID = ?", (classid,)).fetchone()[0]
-    # waitlist_count = db.execute("SELECT COUNT() FROM Waitlists WHERE ClassID = ?", (classid,)).fetchone()[0]
-    # waitlist_count = r.llen(f"waitClassID_{classid}")
-    # print(count)
-    # if count < classes["MaximumEnrollment"]:
-    #     db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber) VALUES(?,?,?)",(studentid, classid, class_section))
-    #     db.commit()
-    #     return {"message": f"Enrolled student {studentid} in section {class_section} of class {classid}."}
-    # elif waitlist_count < classes["WaitlistMaximum"]:
-    #     waitlisted = r.lpos(f"waitClassID_{classid}", studentid)
-    #     # waitlisted = db.execute("SELECT * FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (studentid, classid)).fetchone()
-    #     if waitlisted:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_409_CONFLICT,
-    #             detail="Student already waitlisted")
-
-        # max_waitlist_position = db.execute("SELECT MAX(Position) FROM Waitlists WHERE ClassID = ? AND  SectionNumber = ?",(classid,sectionid)).fetchone()[0]
-        # print("Position: " + str(max_waitlist_position))
-        # if not max_waitlist_position: max_waitlist_position = 0
-        # db.execute("INSERT INTO Waitlists(StudentID, ClassID, SectionNumber, Position) VALUES(?,?,?,?)",(studentid, classid, class_section, max_waitlist_position + 1))
-        # db.commit()
-    # r.rpush(f"waitClassID_{classid}", studentid)
-        # return {"message": f"Enrolled in waitlist {class_section} of class {classid}."}
-    # else:
-        # return {"message": f"Unable to enroll in waitlist for the class, reached the maximum number of students"}
-    
-
-# TODO: ENDPOINT WORKING INCLUDING KRAKEND, NEED TO TEST REDIS
-# TODO: ADD REDIS 
 @app.delete("/enrollmentdrop/{studentid}/{classid}/{username}/{email}")
 def drop_student_from_class(studentid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to drop a class.
@@ -473,7 +430,6 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
         # Decrement the CurrentEnrollment for the class
         updated_current_enrollment = update_current_enrollment(classid, increment=False)
         if updated_current_enrollment:
-            # TODO: work on the logic for redis 
             next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
             if next_on_waitlist:
                 new_status = 'ENROLLED'
@@ -496,36 +452,7 @@ def drop_student_from_class(studentid: int, classid: int, username: str, email: 
             status_code=500,
             detail="Failed to update enrollment status"
         )
-    
 
-
-    # Add student to class if there are students in the waitlist for this class
-    # next_on_waitlist = db.execute("SELECT * FROM Waitlists WHERE ClassID = ? ORDER BY Position ASC", (classid,)).fetchone()
-    # TODO: add redis according to dynamodb 
-    # next_on_waitlist = r.lpop(f"waitClassID_{classid}")
-    # if next_on_waitlist:
-    #     try:
-    #         db.execute("INSERT INTO Enrollments(StudentID, ClassID, SectionNumber,EnrollmentStatus) \
-    #                         VALUES (?, ?, ?,'ENROLLED')", (next_on_waitlist, classid, sectionid))
-    #         # db.execute("DELETE FROM Waitlists WHERE StudentID = ? AND ClassID = ?", (next_on_waitlist['StudentID'], classid))
-    #         # db.execute("UPDATE Classes SET WaitlistCount = WaitlistCount - 1 WHERE ClassID = ?", (classid,))
-    #         db.commit()
-    #     except sqlite3.IntegrityError as e:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_400_BAD_REQUEST,
-    #             detail={
-    #                 "ErrorType": type(e).__name__, 
-    #                 "ErrorMessage": str(e)
-    #             },
-    #         )
-        
-    #     return {"Result": [
-    #         {"Student dropped from class": dropped_student}, 
-    #         {"Student added from waitlist": next_on_waitlist},
-    #     ]}
-    # return {"Result": [{"Student dropped from class": dropped_student} ]}
-
-# TODO: test this endpoint 
 @app.delete("/waitlistdrop/{studentid}/{classid}/{username}/{email}")
 def remove_student_from_waitlist(studentid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to drop a class from waitlist.
@@ -572,8 +499,7 @@ def remove_student_from_waitlist(studentid: int, classid: int, username: str, em
             )
         
     return {"Element removed": studentid}
-    
-# TODO: test this endpoint and update dynamo
+
 @app.get("/waitlist/{studentid}/{classid}/{username}/{email}")
 def view_waitlist_position(studentid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to view a student's position on the waitlist.
@@ -599,7 +525,6 @@ def view_waitlist_position(studentid: int, classid: int, username: str, email: s
     return {message: position}
     
 ### Instructor related endpoints
-# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, works in krakend
 @app.get("/enrolled/{instructorid}/{classid}/{username}/{email}")
 def view_enrolled(instructorid: int, classid: int, username: str, email: str):
     """API to view all students enrolled in a class.
@@ -623,7 +548,6 @@ def view_enrolled(instructorid: int, classid: int, username: str, email: str):
     return {"Enrolled Students": enrolled_students}
 
 
-# TODO: ENDPOINT WORKING, ONLY RETURNS STUDENT ID AND ENROLLMENT STATUS, errors working as well, works in krakend
 @app.get("/dropped/{instructorid}/{classid}/{username}/{email}")
 def view_dropped_students(instructorid: int, classid: int, username: str, email: str):
     """API to view all students dropped from a class.
@@ -646,8 +570,6 @@ def view_dropped_students(instructorid: int, classid: int, username: str, email:
         raise HTTPException(status_code=404, detail="No dropped students found for this class.")
     return {"Dropped Students": dropped_students}
 
-# TODO: endpoint fully working, works in krakend
-# TODO: add redis to add next on waitlist to class
 @app.delete("/drop/{instructorid}/{classid}/{studentid}/{username}/{email}")
 def drop_student_administratively(instructorid: int, classid: int, studentid: int, username: str, email: str, r = Depends(get_redis)):
     """API to drop a student from a class.
@@ -688,24 +610,15 @@ def drop_student_administratively(instructorid: int, classid: int, studentid: in
             detail="Failed to update current enrollment"
         )
     # Add student to class if there are students in the waitlist for this class
-    # TODO: add redis here
     next_on_waitlist = int(r.lpop(f"waitClassID_{classid}"))
     if next_on_waitlist:
         new_status = 'ENROLLED'
         new_response = retrieve_enrollment_record_id(next_on_waitlist, classid)
         new_updated_status = update_enrollment_status(new_response, new_status)
         updated_current_enrollment = update_current_enrollment(classid, increment=True)
-    
-    # return {
-    #     "message": "Class dropped updated successfully",
-    #     "updated_status": updated_status,
-    #     "new_student": new_updated_status,
-    #     "updated_current_enrollment": updated_current_enrollment
-    # }
     return {"message": f"Student {studentid} has been administratively dropped from class {classid} by instructor {instructorid}"}
 
 
-# TODO: Need to test with redis
 @app.get("/instructorwaitlist/{instructorid}/{classid}/{username}/{email}")
 def view_waitlist(instructorid: int, classid: int, username: str, email: str, r = Depends(get_redis)):
     """API to view the waitlist for a class.
@@ -721,8 +634,7 @@ def view_waitlist(instructorid: int, classid: int, username: str, email: str, r 
         raise HTTPException(
             status_code=403,
             detail=f"Instructor with InstructorID {instructorid} is not an instructor for class with ClassID {classid}"
-        )    
-    # TODO: might need to delete this if redundant
+        )
     waitlisted_students = get_students_for_class(classid, 'WAITLISTED')
     if not waitlisted_students:
         raise HTTPException(status_code=404, detail="No waitlisted students found for this class.")    
@@ -733,8 +645,6 @@ def view_waitlist(instructorid: int, classid: int, username: str, email: str, r 
     return {"Waitlist": [{"student_id": int(student)} for student in student_ids]}
 
 ### Registrar related endpoints
-# TODO: ENDPOINT WORKING, WORKS WITH KRAKEND AS WELL
-# TODO: probably need to create a redis waitlist 
 @app.post("/add/{sectionid}/{coursecode}/{classname}/{department}/{professorid}/{enrollmax}/{status}/{waitmax}")
 def add_class(request: Request, sectionid: int, coursecode: str, classname: str, department:str, professorid: int, enrollmax: int, status: str, waitmax: int):
     """API to add a class to the catalog.
@@ -818,9 +728,6 @@ def add_class(request: Request, sectionid: int, coursecode: str, classname: str,
         )
 
 
-
-# TODO: endpoint fully working, works in krakend add redis please
-# TODO: probably need to drop wailist for this class in redis
 @app.delete("/remove/{classid}")
 def remove_class(classid: int):
     """API to remove a class from the catalog.
@@ -851,7 +758,6 @@ def remove_class(classid: int):
 
 
 
-# TODO: endpoint tested and fully working, works in krakend
 @app.put("/state/{classid}/{state}")
 def state_enrollment(classid: int, state: str):
     """API to change class between active and inactive.
@@ -883,7 +789,6 @@ def state_enrollment(classid: int, state: str):
         return {"message": f"Failed to update class to {state}"}
 
 
-# TODO: ENDPOINT WORKING, WORKS WITH KRAKEND
 @app.put("/change/{classid}/{newprofessorid}")
 def change_prof(request: Request, classid: int, newprofessorid: int):
     """API to change the professor for a class.
@@ -921,24 +826,3 @@ def change_prof(request: Request, classid: int, newprofessorid: int):
         return {"message": f"Instructor updated to user with UserID '{newprofessorid}' successfully"}
     else:
         return {"message": f"Failed to update instructor to {newprofessorid}"}
- 
-
-# Redis examples
-@app.put("/add/{classid}/{studentid}")
-def freeze_enrollment(classid: str, studentid: str, db = Depends(get_redis)):
-    db.rpush(f"waitClassID_{classid}", studentid)
-
-@app.delete("/remove/{classid}")
-def freeze_enrollment(classid: str, db = Depends(get_redis)):
-    studentid = db.lpop(f"waitClassID_{classid}")
-    return studentid
-
-@app.get("/lpos/{classid}/{studentid}")
-def freeze_enrollment(classid: str, studentid:str, db = Depends(get_redis)):
-    studentidd = db.lpos(f"waitClassID_{classid}", studentid)
-    return studentidd
-
-@app.get("/waitt/{classid}/{studentid}")
-def freeze_enrollment(classid: int, studentid: int, db = Depends(get_redis)):
-    id = retrieve_enrollment_record_id(studentid, classid)
-    return id#update_enrollment_status(id, "WAITLIST")
