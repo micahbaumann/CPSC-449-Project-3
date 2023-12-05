@@ -1,7 +1,9 @@
 uvicorn==0.22.0
 pydantic
+pydantic-settings
 fastapi
 loguru
 jwcrypto
 boto3
 redis[hiredis]
+requests
